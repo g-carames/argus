@@ -39,3 +39,21 @@ Argus aims to serve as a checkpoint between code generation and human approval, 
 
 Argus is designed to help bridge that gap, while recognizing that static analysis cannot replace comprehensive testing, security assessments, or human engineering judgment.# argus
 Local-first, multilingual software architecture intelligence and static risk analysis for AI-assisted development.
+
+## Closing the AI-Assisted Development Loop
+
+Argus is designed not only to identify architectural risks, but also to facilitate their remediation.
+
+In addition to human-readable architectural reports and machine-readable analysis results, Argus aims to generate AI-agent-compatible remediation reports containing structured findings, source locations, supporting evidence, recommended corrective actions, and validation criteria.
+
+These reports can be provided directly to AI coding agents such as OpenAI Codex, Anthropic Claude Code, Google Gemini, or other development assistants, enabling targeted remediation of identified issues.
+
+By introducing an independent, deterministic analysis layer between AI-generated implementation and subsequent remediation, Argus aims to establish a more accountable development workflow:
+
+**Generate → Analyze → Review → Remediate → Reanalyze**
+
+Argus does not automatically authorize or apply modifications to the analyzed codebase. Developers retain control over which findings are addressed, which changes are accepted, and whether additional verification is required.
+
+Reports are generated locally. Users should review and sanitize sensitive architectural information before voluntarily sharing reports with external AI services.
+
+The objective is to make AI-assisted software development more transparent, iterative, and technically responsible without sacrificing the productivity benefits of generative AI.
