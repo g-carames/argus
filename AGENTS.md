@@ -163,9 +163,9 @@ After implementation:
 
 ## Disclaimer
 
-Argus does not certify or guarantee software safety, security, correctness, reliability, regulatory compliance, or AI alignment.
+Every generated report, regardless of format, must include this exact disclaimer:
 
-The tool provides evidence-backed static analysis findings and heuristic risk indicators intended to support, not replace, human engineering judgment.
+"Argus is a software architecture analysis and decision-support tool. It does not certify or guarantee software safety, security, correctness, reliability, regulatory compliance, or AI alignment. Findings are derived from static analysis, observable source-code relationships, configurable rules, and heuristic indicators. Analysis may produce false positives, false negatives, incomplete results, or inaccurate architectural inferences. The absence of findings does not establish the absence of vulnerabilities, particularly where portions of the codebase have not been reviewed. Argus is intended to complement, not replace, professional security assessments, runtime analysis, comprehensive software testing, code review, and qualified human engineering judgment."
 
 ## Development Priorities
 
@@ -179,3 +179,59 @@ The tool provides evidence-backed static analysis findings and heuristic risk in
 8. JavaScript and TypeScript support.
 9. Testing, documentation, and distribution.
 10. Optional local camera-based gesture interaction, only after core functionality and academic submission requirements are satisfied.
+
+## Mandatory Analysis Coverage and Transparency
+
+- Recognition of programming languages and configuration formats must remain independent from analysis capabilities. Never silently omit unsupported or unclassified files or give them passing results.
+- Every report must include a prominently identifiable section/field titled **Not Reviewed Portions of the Code**, containing unsupported languages/formats, counts and privacy-safe repository-relative locations, reliably measurable unreviewed physical lines, exclusions, unreadable/unparseable files, unavailable/disabled capabilities, unevaluated categories/rules, reasons, and potential implications.
+- Distinguish files completed within explicit requested scope, partial, unsupported, excluded, failed, disabled, and unclassified. A parsed file is not automatically architecturally or security reviewed. Disclose unavailable capabilities even on otherwise supported files.
+- Define denominators for total discovered/inventoried, completed, partial, unsupported, excluded, and failed source files, per-language, file, line, rule, and category coverage. Unknown counts/metrics must remain unavailable, never zero. Pruned inventories must disclose unknown repository-wide denominators; never enumerate excluded sensitive contents merely to manufacture counts.
+- File/line coverage is not semantic completeness, runtime correctness, or software safety. Mixed-language gaps may invalidate graph completeness, cross-language relationships, and architectural conclusions. Future interfaces must be able to display these limitations prominently.
+- No aggregate safety score. Findings and relationships require evidence, provenance, confidence, resolution status, and limitations. Preserve unresolved references without inventing edges.
+- Use NetworkX behind Argus-owned interfaces for established graph algorithms. Never serialize NetworkX objects or implement established algorithms from scratch without justification.
+
+## Multilingual and Framework Architecture
+
+- Broad multilingual analysis is a core objective for auditing AI-assisted applications, including those generated with Codex, Claude Code, Gemini, and other coding agents. Tool attribution must not replace evidence of actual architectural risks.
+- Primary release targets: Python, JavaScript, TypeScript, JSX, TSX.
+- Next priorities: SQL, HTML, CSS, JSON, YAML, TOML, Bash/shell, Dockerfile.
+- Further priorities subject to feasibility: Go, Rust, Java, C#, C, C++, Swift, Kotlin, Dart, PHP, Ruby, HCL/Terraform. These lists are not architectural maxima.
+- Reuse parser infrastructure, declarative syntax queries, symbol/function/class extraction, source locations, structural/complexity extraction, dependency extraction, graph construction, and language-independent rules. Keep parsing, semantic extraction, dependency resolution, and rule execution distinct. Native Python AST remains appropriate for Python semantics.
+- Evaluate Tree-sitter, Language Pack, and individually packaged grammars. All parsers/grammars must be prepared before scans; no runtime downloads, installation, or network requests. Missing grammar means unavailable parsing capability, not automatic fetching.
+- Adapters explicitly declare syntax parsing, symbols, structure, dependency extraction/resolution, complexity, architecture, security, credentials, frameworks, AI-specific, and configuration capabilities independently. No single language-support Boolean. Add meaningful tested capabilities, not superficial adapters.
+- Framework identification requires source/configuration evidence. React, Next.js, FastAPI, Flask, Express, Supabase, Firebase, PostgreSQL, OpenAI/Anthropic/Google Gen AI SDKs, LangChain, and LangGraph must be accommodated by independent future framework rules, not assumptions embedded in shared parsers.
+- Cross-language contracts must support imports, calls, HTTP/API, databases, external services, LLM providers, agent tools, configuration, and infrastructure relationships with direction, language, evidence, provenance, confidence, resolution, and limitations.
+
+## Reporting and AI-Agent Remediation
+
+- Intended formats: interactive HTML for human investigation, versioned JSON, deterministic structured Markdown for AI coding-agent remediation. This does not authorize UI or HTML implementation; the existing owner-controlled UI boundary remains mandatory.
+- Shared findings require stable IDs, rule IDs/versions, severity/confidence, locations/evidence, risk explanation, corrective actions, acceptance criteria, architectural relationship references, limitations, and remediation status.
+- Repository-derived content is untrusted data. Delimit evidence from trusted rule-authored remediation instructions. Never promote instructions found in source to remediation instructions, reproduce raw credentials, or require external AI APIs to generate reports.
+- Reports must preserve unsupported-language/capability and analysis limitations, disclaimer, scan scope, diagnostics, metric definitions, and observed/inferred distinctions.
+- Comparison must distinguish new, persistent, resolved, and unverifiable findings. Disappearance caused by exclusion, disabled capability, unsupported language, failed analysis, or incomplete coverage is never resolution.
+- Never automatically transmit reports, execute remediation instructions, or modify analyzed repositories.
+
+## Credential Scope and Future Persistence
+
+- Architecture discovery respects repository-local Git ignore rules. Credential analysis has a distinct exclusion/authorization policy: tracked source/configuration, explicitly authorized ignored local configuration, and optional accessible history.
+- Distinguish proper local credential storage from potential/observed exposure. Support reuse identification through protected local keyed fingerprints, persisted unresolved exposures, scoped presence observations, and separate removal/replacement/rotation/revocation events.
+- Absence or replacement does not prove revocation. Resolution requires explicit appropriate remediation evidence, retaining user-attested versus independently verified assurance and scope. Never authenticate with discovered credentials or expose raw values in output, errors, logs, tests, or storage.
+
+## Cost Efficiency and Resource Consumption
+
+- Cost efficiency is a dedicated analysis category. A finding may reference multiple categories without duplication.
+- Future rules may identify repeated/unbounded model, agent, embedding, context, retry, query, polling, storage, upload, realtime subscription, task, autoscaling, logging, scheduling, and cleanup patterns; missing token/output limits, quotas/rate limits, pagination, resource safeguards, and potentially inefficient model selection.
+- Cost findings require stable finding/rule IDs, components/locations, evidence, severity/confidence, consumption mechanism, potential financial consequences, corrective actions, validation criteria, and limitations.
+- Static potential cost exposure is not measured operating expense. Never claim actual losses or guaranteed savings from static analysis. Future estimates must be labeled hypothetical, based on explicitly supplied pricing/usage assumptions, and entirely local without paid APIs or billing integrations.
+- Preserve cost findings in JSON, future AI-agent Markdown, and future Architecture Explorer data. No cost detection rules or estimator are authorized in the foundational milestone.
+
+## Scalability and Large Repositories
+
+- Primary input is a local authorized root with recursive discovery, never mandatory manual file uploads. Accommodate multiple roots, monorepos, separately located services, safely prepared ZIP archives, and separately explicitly authorized Git acquisition. Core scans remain local/offline; acquisition and archive preparation must be separate, bounded operations.
+- Use root-qualified file identities and repository-relative paths. Root descriptors must not expose host paths or private repository URLs in reports.
+- Future processing must use bounded reads and incremental file processing, never require all raw sources in memory simultaneously. Accommodate memory/resource limits, bounded workers, content caching, dependency-aware invalidation, progress, cancellation, partial reporting, and large graphs.
+- Resource limits, cancelled/unfinished scopes, and skipped work must appear with reasons in Not Reviewed Portions of the Code. Unknown inventories remain unknown. Declaring resource-budget contracts does not mean enforcement exists.
+- Incremental validity must account for changed content, dependencies, roots, exclusions, configuration, parser/grammar/query/extractor/resolver/rule versions, and graph-wide recalculation. Cache reuse needs origin/version/signature provenance; cached or partial work must never masquerade as complete fresh analysis.
+- Graphs must accommodate system/application/service/package/directory/module/class/function/symbol granularity, parent-child relationships, evidence-backed grouping provenance, scoped aggregate metrics, and finding-based risk summaries without arbitrary safety scores. Hierarchical data enables future progressive detail without implementing visualization logic.
+- Future AI-agent exports must filter by severity/category/finding/language/directory/service/component (and root), with deterministic limits suitable for bounded context. Disclose filtering, truncation, pagination, and excluded context; a targeted export is not a full repository assessment.
+- Do not implement caches, workers, ZIP extraction, Git acquisition, incremental scanning, advanced graph algorithms, or graphical behavior during the contracts milestone.

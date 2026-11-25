@@ -37,5 +37,41 @@ Argus aims to serve as a checkpoint between code generation and human approval, 
 
 **The ability to build software faster should not come at the expense of understanding what has been built.**
 
-Argus is designed to help bridge that gap, while recognizing that static analysis cannot replace comprehensive testing, security assessments, or human engineering judgment.# argus
+Argus is designed to help bridge that gap, while recognizing that static analysis cannot replace comprehensive testing, security assessments, or human engineering judgment.
+
+# argus
 Local-first, multilingual software architecture intelligence and static risk analysis for AI-assisted development.
+
+## Current development status
+
+Milestone 1 establishes backend contracts only: immutable typed models, component
+interfaces, explicit coverage accounting, deterministic JSON serialization, and
+validation tests. No repository scanner, language analysis, credential detection,
+cost rules, graph algorithms, remediation storage, or graphical interface is
+implemented. Broad multilingual analysis is a core objective; Python, JavaScript,
+TypeScript, JSX, and TSX are primary release targets, not currently supported analyzers.
+
+Requires Python >=3.12 and uv:
+
+```sh
+uv sync
+uv run argus --help
+uv run argus --version
+uv run pytest
+uv build
+```
+
+`argus scan` is reserved for a future milestone and currently returns an argument
+error. Reports serialize supplied contract records; they do not perform analysis.
+Installation can download free dependencies; backend operation is entirely local.
+
+See [backend architecture](docs/architecture.md) and the
+[versioned data contract](docs/data-contract.md). Every generated report includes
+**Not Reviewed Portions of the Code**, explicit capability/category limitations,
+and the mandatory disclaimer. Coverage and absence of findings never establish safety.
+
+Generated reports and local records belong in ignored `argus-reports/`,
+`argus-records/`, or `.argus/` locations. Treat reports as confidential; ignore
+patterns do not protect arbitrary output paths. Do not commit real credentials or
+analysis reports. The graphical interface remains reserved for manual development
+by the project owner in collaboration with ChatGPT.
