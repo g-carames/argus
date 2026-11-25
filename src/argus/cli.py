@@ -6,6 +6,7 @@ from pathlib import Path
 import sys
 
 from .config import load_settings, open_directory
+from .errors import CliError, DirectorySymlinkError
 from .reporting import JsonReportWriter
 from .scanner import scan
 
@@ -14,22 +15,35 @@ class SafeParser(argparse.ArgumentParser):
     def error(self, message):
         # argparse's default diagnostics echo arbitrary untrusted argument values.
         self.print_usage(sys.stderr)
-        self.exit(2, 'argus: invalid arguments; use --help for accepted options.\n')
+        self.exit(2, 'argus: ARGUS_ARGUMENTS_INVALID: invalid arguments; use --help for accepted options.\n')
 
 
 def write_output(path, report):
     output = Path(path).absolute()
-    if output.parent != output.parent.resolve() or not output.parent.is_dir():
-        raise ValueError('Output parent must be an existing directory without symbolic links')
     if not output.name.endswith(('.json', '.txt')):
-        raise ValueError('Output must use .json or .txt; existing files are never overwritten')
+        raise CliError('OUTPUT_SUFFIX_INVALID')
     # Pin the directory and create exclusively; never truncate or follow an existing object.
-    parent_fd = open_directory(output.parent)
     try:
-        fd = os.open(output.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
-                     0o600, dir_fd=parent_fd)
-        with os.fdopen(fd, 'w', encoding='utf-8') as stream:
+        parent_fd = open_directory(output.parent)
+    except DirectorySymlinkError:
+        raise CliError('OUTPUT_PARENT_SYMLINK') from None
+    except (OSError, ValueError):
+        raise CliError('OUTPUT_PARENT_UNAVAILABLE') from None
+    try:
+        try:
+            fd = os.open(output.name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                         0o600, dir_fd=parent_fd)
+        except FileExistsError:
+            raise CliError('OUTPUT_ALREADY_EXISTS') from None
+        try:
+            stream = os.fdopen(fd, 'w', encoding='utf-8')
+        except BaseException:
+            os.close(fd)
+            raise
+        with stream:
             stream.write(report)
+    except (OSError, UnicodeError):
+        raise CliError('OUTPUT_WRITE_FAILED') from None
     finally:
         os.close(parent_fd)
 
@@ -55,13 +69,20 @@ def main(argv=None):
             print(f'argus: inventory inspected {count} files; total unknown', file=sys.stderr)
 
     try:
-        settings = load_settings(args.config, args.exclude)
+        try:
+            settings = load_settings(args.config, args.exclude)
+        except (OSError, ValueError):
+            raise CliError('CONFIG_INVALID') from None
         result = scan(args.path, settings, progress)
         report = JsonReportWriter().render(result)
-        if args.output:
+        if args.output is not None:
             write_output(args.output, report)
         else:
-            sys.stdout.write(report)
+            try:
+                sys.stdout.write(report)
+                sys.stdout.flush()
+            except (OSError, UnicodeError):
+                raise CliError('OUTPUT_WRITE_FAILED') from None
         if args.verbose:
             print(f'argus: inventory {result.inventory.status.value}; {len(result.files)} files; '
                   f'{len(result.coverage.inventory_gaps)} gaps; analysis Not Reviewed', file=sys.stderr)
@@ -71,12 +92,16 @@ def main(argv=None):
             print('argus: inspection limitations recorded in report', file=sys.stderr)
             return 1
         return 0
-    except (OSError, ValueError, RuntimeError):
-        print('argus: invalid or inaccessible input, configuration, or output; output must be a new .json/.txt file.', file=sys.stderr)
+    except CliError as error:
+        print(f'argus: {error.code}: {error}', file=sys.stderr)
         return 2
     except KeyboardInterrupt:
         print('argus: cancelled before a report could be finalized', file=sys.stderr)
         return 130
+    except Exception:
+        error = CliError('INTERNAL_ERROR')
+        print(f'argus: {error.code}: {error}', file=sys.stderr)
+        return 70
 
 
 def entrypoint():

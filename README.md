@@ -49,6 +49,8 @@ language/format recognition, manifest-based technology observations, and hierarc
 inventory. No language analysis adapter, architectural/security/credential/risk rule,
 graph algorithm, remediation storage, Markdown renderer, HTML renderer, or graphical
 interface is implemented. Recognition is independent from analysis capability.
+Milestone 2.1 adds descriptor-validated relative/parent-directory paths and specific,
+sanitized CLI diagnostics while retaining the strict symbolic-link policy.
 
 Requires Python >=3.12 and uv:
 
@@ -70,8 +72,13 @@ uv run argus scan /path/to/project --config inventory.toml --exclude '*.generate
 JSON is the default and currently only report format. Progress and controlled
 diagnostics go to stderr. Output locations must be explicit, new `.json`/`.txt`
 files in existing directories; existing files and links are never overwritten.
+Input and output paths may contain `.` and `..`; each actual directory component
+is checked before traversal, so `link/../project` still rejects the link. Symlink
+components remain prohibited, including macOS `/tmp`; use `/private/tmp` instead.
 See [Milestone 2 operation and limitations](docs/milestone-2.md) for configuration,
 recognition lists, coverage definitions, safety behavior and validation.
+See [Milestone 2.1 validation](docs/milestone-2.1.md) for diagnostic codes, regression
+coverage, and the independent seven-repository inventory revalidation.
 
 Inventory may complete while the scan remains `partial`: every file and analysis
 category is **Not Reviewed** because no analysis adapters or risk rules exist.

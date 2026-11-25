@@ -11,6 +11,7 @@ import stat
 from pathspec import GitIgnoreSpec
 
 from .config import DiscoverySettings, open_directory
+from .errors import CliError, DirectorySymlinkError
 from .models.base import Status
 from .models.coverage import InventoryGap
 from .privacy import safe_path
@@ -37,15 +38,10 @@ class DiscoveredFile:
 
 class Discovery:
     def __init__(self, root, settings: DiscoverySettings, progress=None, cancellation=None):
-        candidate = Path(root).absolute()
-        # Root symlinks (including parent components) are rejected rather than resolved.
-        try:
-            canonical = candidate.resolve()
-        except (OSError, RuntimeError):
-            raise ValueError('Scan directory cannot be resolved safely') from None
-        if candidate != canonical or not candidate.is_dir():
-            raise ValueError('Scan input must be an accessible local directory without symbolic links')
-        self.root = candidate
+        if not os.fspath(root):
+            raise CliError('INPUT_UNAVAILABLE')
+        # Preserve '..' until every actual component is validated at traversal start.
+        self.root = Path(root).absolute()
         self.settings = settings
         self.progress = progress
         self.cancellation = cancellation
@@ -94,9 +90,14 @@ class Discovery:
 
     def files(self):
         # One open descriptor per active ancestor; no recursion or sibling descriptors.
-        stack = []
         try:
             root_fd = open_directory(self.root)
+        except DirectorySymlinkError:
+            raise CliError('INPUT_SYMLINK_COMPONENT') from None
+        except (OSError, ValueError):
+            raise CliError('INPUT_UNAVAILABLE') from None
+        stack = []
+        try:
             stack.append([root_fd, '', (), 0, None])
             while stack and not self.stopped:
                 if self.cancellation is not None and self.cancellation.is_cancelled:

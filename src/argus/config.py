@@ -6,6 +6,8 @@ import tomllib
 
 from pathspec import GitIgnoreSpec
 
+from .errors import DirectorySymlinkError
+
 
 @dataclass(frozen=True)
 class DiscoverySettings:
@@ -64,13 +66,32 @@ def load_settings(path=None, excludes=()) -> DiscoverySettings:
 
 
 def open_directory(path):
-    """Open every absolute path component without following links (POSIX)."""
+    """Select a directory via unnormalized, no-follow components (POSIX).
+
+    User-selected '.' and '..' are permitted here, before a repository root is
+    established. Discovery never supplies repository-derived paths to this helper.
+    In particular, validate 'link' in 'link/../repo' rather than normalizing it away.
+    The caller owns the returned descriptor; no resolved path is reopened.
+    """
     from pathlib import Path
     target = Path(path).absolute()
     fd = os.open('/', os.O_RDONLY | os.O_DIRECTORY)
     try:
         for part in target.parts[1:]:
-            child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+            if stat.S_ISLNK(os.stat(part, dir_fd=fd, follow_symlinks=False).st_mode):
+                raise DirectorySymlinkError('Symbolic-link directory component rejected')
+            try:
+                child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+            except OSError:
+                # ENOTDIR/ELOOP vary by platform; a swapped link must also receive
+                # a safe diagnostic. The no-follow open, not stat, enforces safety.
+                try:
+                    is_link = stat.S_ISLNK(os.stat(part, dir_fd=fd, follow_symlinks=False).st_mode)
+                except OSError:
+                    is_link = False
+                if is_link:
+                    raise DirectorySymlinkError('Symbolic-link directory component rejected') from None
+                raise
             os.close(fd)
             fd = child
         return fd

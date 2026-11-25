@@ -21,12 +21,18 @@ uv run argus scan /path/to/project --config inventory.toml --exclude '*.generate
 
 JSON is the default and only report format; no HTML or Markdown renderer is added.
 `--exclude` is repeatable. Relative paths resolve against the caller's working
-directory. Progress (first file and every 100 files) and fixed diagnostics go to
-stderr; stdout contains only JSON unless `--output` is supplied. Progress has no
+directory. Milestone 2.1 supports `.` and repeated `..` components in relative or
+absolute directory selections without normalizing away symlink components.
+Relative output paths follow the same rules. Actual symlink components remain
+rejected, including macOS `/tmp`; use `/private/tmp`. See
+[Milestone 2.1](milestone-2.1.md) for the fixed diagnostic codes and validation.
+Progress (first file and every 100 files) and fixed diagnostics go to stderr;
+stdout contains only JSON unless `--output` is supplied. Progress has no
 invented total. Exit codes: 0 inventory produced without inspection errors (normal
 exclusions and unavailable analysis are allowed); 1 inspection errors, resource gaps
 or malformed inspected manifests; 2 invalid arguments/input/configuration/output;
-130 cancelled. A partial analysis report with zero findings is not a passed audit.
+70 unexpected internal failure; 130 cancelled. A partial analysis report with zero
+findings is not a passed audit.
 
 Ctrl-C during discovery produces a partial report where feasible, preserving a
 cancellation gap. Cancellation before discovery or during final report serialization
