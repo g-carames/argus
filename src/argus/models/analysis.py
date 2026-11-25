@@ -226,8 +226,9 @@ class Graph(Record):
     limitations: tuple[str, ...] = ()
 
     def validate(self) -> None:
-        ids = tuple(node.id for node in self.nodes)
-        unique(ids)
+        node_ids = tuple(node.id for node in self.nodes)
+        unique(node_ids)
+        ids = set(node_ids)
         edge_ids = tuple(edge.id for edge in self.relationships)
         unique(edge_ids)
         for node in self.nodes:

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from enum import StrEnum
 
-from .base import Confidence, Provenance, Record, nonempty, relative_path, require
+from .base import Confidence, Provenance, Record, nonempty, relative_path, require, unique
 
 
 class FileKind(StrEnum):
@@ -41,8 +41,18 @@ class SourceFile(Record):
     language: str | None = None
     physical_lines: int | None = None
     root_id: str = "root"
+    size_bytes: int | None = None
+    recognition_basis: str | None = None
+    language_candidates: tuple[str, ...] = ()
 
     def validate(self) -> None:
+        require(self.size_bytes is None or self.size_bytes >= 0, "negative file size")
+        require(not self.language_candidates or self.language is None, "ambiguous language cannot be resolved")
+        unique(self.language_candidates)
+        for candidate in self.language_candidates:
+            nonempty(candidate)
+        if self.recognition_basis is not None:
+            nonempty(self.recognition_basis)
         nonempty(self.id)
         nonempty(self.root_id)
         relative_path(self.path)

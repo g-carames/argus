@@ -2,12 +2,23 @@
 
 ## Implemented scope
 
-Argus currently supplies immutable shared records, strict validation, component
-protocols, versioned JSON serialization, and packaging smoke checks. There is no
-scanner, language adapter, rule implementation, graph algorithm, credential
-detector, persistence backend, cost estimator, Markdown renderer, or HTML renderer.
-An installed `argus --help` describes that state; `argus --version` uses package
-metadata. `argus scan` is intentionally not implemented.
+Argus supplies immutable shared records, strict validation, component protocols,
+versioned JSON serialization, and a functional offline inventory CLI. Milestone 2
+adds `cli.py` (composition and safe output), `config.py` (bounded TOML input),
+`discovery.py` (descriptor-relative traversal and Git ignore handling),
+`recognition.py` (language registry), `technologies.py` (manifest observations),
+`privacy.py` (defensive path masking), and `scanner.py` (inventory orchestration).
+These modules never execute/import target code or perform network operations.
+Analysis adapters, risk rules, graph algorithms, credential/history scanning,
+persistence, Markdown/HTML renderers, and graphical interfaces remain unimplemented.
+
+The CLI uses the existing ScanResult/coverage/graph contracts. Schema 1.1.0 adds
+optional file recognition/size fields and an independent inventory summary, without
+changing analysis completion semantics. Parent references model containment only;
+no established graph algorithms are reimplemented. NetworkX remains deferred until
+an authorized graph algorithm milestone. Parsing boundaries and the planned shared
+Tree-sitter service remain unchanged. See [Milestone 2](milestone-2.md) for enforced
+limits, recognition scope, output safety and known limitations.
 
 Python >=3.12 is supported. The development interpreter is pinned to the 3.12
 minor series, without limiting consumers to that minor version. Use `uv sync`,

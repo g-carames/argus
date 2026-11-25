@@ -9,7 +9,7 @@ from .credentials import CredentialExposure
 from .execution import ExecutionMetadata, ResourceBudget, RootScope
 from .source import Evidence, Module, SourceFile, SourceLocation, Symbol
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "1.1.0"
 DISCLAIMER = (
     "Argus is a software architecture analysis and decision-support tool. It does not certify or "
     "guarantee software safety, security, correctness, reliability, regulatory compliance, or AI "
@@ -55,6 +55,29 @@ class Diagnostic(Record):
 
 
 @dataclass(frozen=True, kw_only=True)
+class InventorySummary(Record):
+    status: Status
+    inventoried_files: int
+    visited_entries: int
+    inspected_bytes: int
+    max_entries: int | None = None
+    max_depth: int | None = None
+    max_total_bytes: int | None = None
+    max_ignore_bytes: int | None = None
+    repository_file_count: int | None = None
+    limitations: tuple[str, ...] = ()
+
+    def validate(self) -> None:
+        require(self.status in (Status.COMPLETED, Status.PARTIAL, Status.FAILED), "invalid inventory status")
+        require(all(x >= 0 for x in (self.inventoried_files, self.visited_entries, self.inspected_bytes)),
+                "negative inventory count")
+        require(all(x is None or x > 0 for x in (self.max_entries, self.max_depth, self.max_total_bytes, self.max_ignore_bytes)),
+                "invalid inventory resource limits")
+        require(self.repository_file_count is None or self.repository_file_count >= self.inventoried_files,
+                "invalid repository denominator")
+
+
+@dataclass(frozen=True, kw_only=True)
 class ScanResult(Record):
     scan_id: str
     tool_version: str
@@ -73,8 +96,16 @@ class ScanResult(Record):
     schema_version: str = SCHEMA_VERSION
     disclaimer: str = DISCLAIMER
     execution: ExecutionMetadata = ExecutionMetadata()
+    inventory: InventorySummary | None = None
 
     def validate(self) -> None:
+        if self.inventory is not None:
+            require(self.inventory.inventoried_files == len(self.files), "inventory file count mismatch")
+            require(not self.execution.cancelled or self.inventory.status != Status.COMPLETED,
+                    "cancelled inventory cannot claim completion")
+            require(self.inventory.status != Status.COMPLETED or
+                    (not self.coverage.inventory_gaps and all(item.status != Status.FAILED for item in self.coverage.files)),
+                    "incomplete inventory cannot claim completion")
         nonempty(self.tool_version)
         nonempty(self.scan_id)
         require(not self.execution.cancelled or self.status != Status.COMPLETED,
@@ -161,6 +192,6 @@ class ScanResult(Record):
         locations += [symbol.location for symbol in self.symbols]
         locations += [loc for finding in self.findings for loc in finding.locations]
         locations += [item.location for item in self.diagnostics if item.location is not None]
-        require(all((loc.root_id, loc.path) in {(file.root_id, file.path) for file in self.files}
-                    for loc in locations),
+        inventoried_paths = {(file.root_id, file.path) for file in self.files}
+        require(all((loc.root_id, loc.path) in inventoried_paths for loc in locations),
                 "location outside file inventory")

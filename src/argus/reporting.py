@@ -78,6 +78,19 @@ class JsonReportWriter:
                     group["unreviewed_physical_lines"] = None
                 elif group["unreviewed_physical_lines"] is not None:
                     group["unreviewed_physical_lines"] += file.physical_lines
+        if result.inventory is not None:
+            data["inventory"]["file_counts_by_language_or_format"] = {
+                language: sum((file.language or "unclassified") == language for file in result.files)
+                for language in sorted({file.language or "unclassified" for file in result.files})
+            }
+            data["inventory"]["file_counts_by_kind"] = {
+                kind: sum(file.kind.value == kind for file in result.files)
+                for kind in sorted({file.kind.value for file in result.files})
+            }
+            data["inventory"]["measurable_physical_lines"] = sum(
+                file.physical_lines for file in result.files if file.physical_lines is not None)
+            data["inventory"]["files_with_unavailable_line_counts"] = sum(
+                file.physical_lines is None for file in result.files)
         metrics = result.coverage.source_metrics(result.files)
         data["coverage"]["source_metrics"] = _metrics_data(metrics)
         data["coverage"]["by_language"] = {

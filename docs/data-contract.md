@@ -1,4 +1,4 @@
-# Argus JSON contract 1.0.0
+# Argus JSON contract 1.1.0
 
 ## Contract conventions
 
@@ -241,3 +241,49 @@ pagination, truncation metadata, Markdown escaping, and progressive graph queryi
 remain future implementations. No filtering is performed by `JsonReportWriter`.
 Large graph serialization currently materializes structured data and JSON in memory;
 this foundational milestone makes no large-repository throughput guarantees.
+
+## Milestone 2 additive revision (1.1.0)
+
+The same versioned JSON envelope now accepts optional `SourceFile.size_bytes`,
+`recognition_basis`, and `language_candidates`. A null language with nonempty
+candidates records ambiguity, not supported analysis. Null physical lines remain
+unavailable. UTF-8 text is counted using CRLF/CR/LF physical terminators, including
+blank and comment lines; a final unterminated line counts once.
+
+Optional `ScanResult.inventory` independently describes inventory status,
+inventoried files, encountered entries, inspected bytes, repository file count
+(null when directories/scopes were pruned), traversal limits and limitations.
+The JSON projection adds all-file counts by language/format and kind, measurable
+physical lines and number of files whose line counts are unavailable. Measurable
+line sums are explicitly partial observations, never a repository-wide denominator.
+Existing `coverage.by_language` continues to describe **source files only**.
+
+All recognized files have unsupported analysis coverage; unknown/ambiguous files
+are unclassified; read/resource failures are failed. No file receives completed
+analysis coverage. `inventory.status=completed` is independent of the scan's
+`status=partial`. Every category and every per-file analysis capability remains
+unsupported. The empty rule list means no installed/evaluated rules, not a passed
+rule set. No dependency graph, credential observations or risk findings are claimed.
+
+Graph nodes represent observed roots/directories/files, manifest-inferred packages
+and applications, and technology evidence grouped under the manifest. Grouping has
+explicit observed/inferred provenance and evidence. No calls/import/service edges
+are invented. Application suggestions come only from declared Node start/dev scripts
+or Python project scripts, without executing those scripts. These are candidates,
+not confirmed deployed services. Stable opaque IDs derive from relative identities,
+not host paths, timestamps or source contents. Future multi-root discovery remains
+unimplemented; the current authorized root ID is `root`.
+
+`ResourceBudget.max_file_bytes`/`max_files` are enforced. Inventory separately records
+max entries/depth/total inspected bytes/ignore bytes. One worker is used; the declared
+memory budget is informational and **not enforced**, as stated in limitations.
+Exclusion pattern values supplied by users are withheld from reports (indexed
+policy references), because patterns may contain secrets. Defaults are explicit.
+Diagnostics contain fixed producer text and safe paths, never raw exceptions.
+Path masking preserves hierarchy using deterministic hashed components, including
+reserved redaction-like names, and does not constitute credential tracking.
+
+Earlier descriptions of discovery as future work apply to the Milestone 1
+foundation only; Milestone 2 behavior above supersedes those statements. Model-only
+callers may omit the optional inventory record. Consumers must tolerate these
+additive 1.1 fields while continuing to reject unsupported major versions.

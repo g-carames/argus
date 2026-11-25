@@ -44,12 +44,11 @@ Local-first, multilingual software architecture intelligence and static risk ana
 
 ## Current development status
 
-Milestone 1 establishes backend contracts only: immutable typed models, component
-interfaces, explicit coverage accounting, deterministic JSON serialization, and
-validation tests. No repository scanner, language analysis, credential detection,
-cost rules, graph algorithms, remediation storage, AI-agent Markdown renderer,
-HTML renderer, or graphical interface is implemented. Broad multilingual analysis is a core objective; Python, JavaScript,
-TypeScript, JSX, and TSX are primary release targets, not currently supported analyzers.
+Milestone 2 implements a functional local CLI, bounded recursive discovery, broad
+language/format recognition, manifest-based technology observations, and hierarchical
+inventory. No language analysis adapter, architectural/security/credential/risk rule,
+graph algorithm, remediation storage, Markdown renderer, HTML renderer, or graphical
+interface is implemented. Recognition is independent from analysis capability.
 
 Requires Python >=3.12 and uv:
 
@@ -61,8 +60,21 @@ uv run pytest
 uv build
 ```
 
-`argus scan` is reserved for a future milestone and currently returns an argument
-error. Reports serialize supplied contract records; they do not perform analysis.
+```sh
+uv run argus scan /path/to/project
+uv run argus scan /path/to/project --format json --verbose
+uv run argus scan /path/to/project --output /private/tmp/project.argus-report.json
+uv run argus scan /path/to/project --config inventory.toml --exclude '*.generated.*'
+```
+
+JSON is the default and currently only report format. Progress and controlled
+diagnostics go to stderr. Output locations must be explicit, new `.json`/`.txt`
+files in existing directories; existing files and links are never overwritten.
+See [Milestone 2 operation and limitations](docs/milestone-2.md) for configuration,
+recognition lists, coverage definitions, safety behavior and validation.
+
+Inventory may complete while the scan remains `partial`: every file and analysis
+category is **Not Reviewed** because no analysis adapters or risk rules exist.
 Installation can download free dependencies; backend operation is entirely local.
 
 See [backend architecture](docs/architecture.md) and the
@@ -96,7 +108,7 @@ The objective is to make AI-assisted software development more transparent, iter
 
 ## Planned Analysis Capabilities
 
-The following capabilities are product goals, not implemented analysis features in Milestone 1:
+The following capabilities remain product goals, not implemented risk analysis features:
 
 - Architectural integrity: dependency graphs, module relationships, architectural layers, dependency direction and type, circular dependencies, centrality, coupling, and blast radius indicators.
 - Security: evidence-backed indicators of weak security and authorization boundaries.
@@ -110,7 +122,7 @@ The following capabilities are product goals, not implemented analysis features 
 
 Rules are intended to be independently extensible and configurable. Findings must retain identifiers, severity, confidence, locations, supporting evidence, risk explanations, corrective actions, validation criteria, remediation status, and detection limitations. Observed dependencies must remain distinct from inferred relationships; unresolved references must not become invented edges. No aggregate safety score is planned.
 
-Planned reporting includes versioned JSON, deterministic structured Markdown for AI-agent remediation, and an independently developed interactive HTML Architecture Explorer. Only JSON serialization of supplied contract records is currently implemented. Repository-derived evidence is untrusted data and must remain separate from trusted rule-authored remediation instructions.
+Planned reporting includes versioned JSON, deterministic structured Markdown for AI-agent remediation, and an independently developed interactive HTML Architecture Explorer. Only versioned JSON reporting is currently implemented. Repository-derived evidence is untrusted data and must remain separate from trusted rule-authored remediation instructions.
 
 ## Multilingual Support and Coverage Transparency
 
@@ -118,7 +130,7 @@ The language-agnostic core is intended to support modular adapters, beginning wi
 
 Language and configuration-format recognition must remain independent of analysis capability. Parsing alone must never imply architectural or security review. Future adapters must declare parsing, symbols, structure, dependency extraction/resolution, complexity, architecture, security, credentials, frameworks, AI-specific, and configuration capabilities separately. Framework identification must require source or configuration evidence.
 
-Every generated report includes **Not Reviewed Portions of the Code**. The current contracts and JSON serializer represent unsupported languages/formats, privacy-controlled repository-relative locations, known unreviewed physical lines, exclusions, unreadable/unparseable files, unavailable or disabled capabilities, and unevaluated categories/rules, with reasons and implications. The future scanner must supply those observations; the serializer does not discover them.
+Every generated report includes **Not Reviewed Portions of the Code**. The current contracts and JSON serializer represent unsupported languages/formats, privacy-controlled repository-relative locations, known unreviewed physical lines, exclusions, unreadable/unparseable files, unavailable or disabled capabilities, and unevaluated categories/rules, with reasons and implications. The inventory scanner supplies discovery observations; the serializer does not discover files.
 
 Coverage distinguishes completed work within explicit scope from partial, unsupported, excluded, failed, disabled, and unclassified files. File, language, line, rule, and category metrics require defined denominators; unknown values remain unavailable. Pruned inventories cannot establish repository-wide totals. File or line coverage does not establish semantic completeness, runtime correctness, or safety, and mixed-language gaps can invalidate graph completeness and architectural conclusions. A finding disappearing because coverage was lost must not be reported as resolved.
 
@@ -128,7 +140,7 @@ Argus's core must operate locally and offline, without paid services, cloud infr
 
 Analyzed repositories are untrusted input. Future analysis must not execute project scripts, import target modules, install target dependencies, modify the target codebase, or follow symbolic links outside the authorized directory. Credential analysis must use its own explicit scope and authorization policy, never authenticate with discovered credentials, and never expose full credential values in reports, logs, or persistent records.
 
-Current records and JSON escaping are not a credential detector or general-purpose sanitizer. Callers must supply privacy-safe text; dedicated path withholding does not sanitize free-text fields. Reports and local remediation records remain confidential and should stay out of Git. Users retain control over any voluntary external sharing and all remediation decisions.
+Defensive inventory path masking and JSON escaping are not a credential detector or general-purpose sanitizer. Callers must supply privacy-safe text; dedicated path withholding does not sanitize free-text fields. Reports and local remediation records remain confidential and should stay out of Git. Users retain control over any voluntary external sharing and all remediation decisions.
 
 ## Disclaimer
 
