@@ -235,3 +235,14 @@ Every generated report, regardless of format, must include this exact disclaimer
 - Graphs must accommodate system/application/service/package/directory/module/class/function/symbol granularity, parent-child relationships, evidence-backed grouping provenance, scoped aggregate metrics, and finding-based risk summaries without arbitrary safety scores. Hierarchical data enables future progressive detail without implementing visualization logic.
 - Future AI-agent exports must filter by severity/category/finding/language/directory/service/component (and root), with deterministic limits suitable for bounded context. Disclose filtering, truncation, pagination, and excluded context; a targeted export is not a full repository assessment.
 - Do not implement caches, workers, ZIP extraction, Git acquisition, incremental scanning, advanced graph algorithms, or graphical behavior during the contracts milestone.
+
+
+## Permanent Rule Catalog and Language Documentation
+
+- Every implemented rule must be registered centrally in `src/argus/analysis/rules.py`.
+- A rule is complete only with implementation, positive/negative/edge-case tests and documentation.
+- Registry metadata must include rule ID/version/name, primary/secondary categories, supported languages/capabilities, exact parameters, methodology, default severity, confidence criteria, configurable thresholds/defaults, rationale, positive/negative examples, remediation, validation criteria, limitations/false positives, associated tests and implementation status.
+- Keep `docs/rules/index.md`, `docs/rules/architecture.md`, `docs/rules/maintainability.md`, `docs/language-support.md`, `docs/configuration.md` and `docs/limitations.md` current. Generate detailed rule documentation from metadata where practical; test for drift.
+- Link detailed documentation from README.md. Summarize categories there without duplicating the complete catalog.
+- Each adapter declares every analysis capability independently. Parser availability alone is never language analysis support.
+- Record measured independent evaluation results without altering external fixtures or ground truth. Separate exact implemented rule scope from broader defect descriptions and disclose unadjudicated findings.

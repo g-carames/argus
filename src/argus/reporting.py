@@ -8,7 +8,7 @@ from dataclasses import dataclass, fields
 from enum import StrEnum
 import json
 
-from .models.base import Record, Status
+from .models.base import Capability, Record, Status
 from .models.scan import ScanResult
 from .contracts import ReportFormat
 
@@ -95,6 +95,23 @@ class JsonReportWriter:
         data["coverage"]["source_metrics"] = _metrics_data(metrics)
         data["coverage"]["by_language"] = {
             language: _metrics_data(result.coverage.source_metrics(result.files, language))
+            for language in sorted({file.language for file in result.files if file.language is not None})
+        }
+        data["coverage"]["language_analysis_coverage"] = {
+            language: {
+                "denominator_definition": "All inventoried files of this recognized language/format, including source, configuration, excluded and failed files; pruned contents unknown.",
+                "inventoried_files": sum(file.language == language for file in result.files),
+                "capabilities": {
+                    cap.value: {
+                        "by_status": {status.value: sum(
+                            next(item.status for item in coverage[file.id].capabilities if item.capability == cap) == status
+                            for file in result.files if file.language == language)
+                            for status in Status},
+                        "limitations": "Completed syntax is not semantic completeness or safety; see per-file capability reasons.",
+                    }
+                    for cap in Capability
+                },
+            }
             for language in sorted({file.language for file in result.files if file.language is not None})
         }
         data["not_reviewed_portions_of_the_code"] = {

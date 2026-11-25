@@ -1,4 +1,4 @@
-"""Inventory composition root; no analysis adapters or risk rules run here."""
+"""Safe discovery and static analysis composition root."""
 from importlib.metadata import version
 from pathlib import PurePosixPath
 import re
@@ -31,6 +31,8 @@ NO_ANALYSIS = tuple(CapabilityCoverage(capability=cap, status=Status.UNSUPPORTED
 
 
 def scan(root, settings: DiscoverySettings = DiscoverySettings(), progress=None, cancellation=None):
+    from .analysis.pipeline import Analysis
+    analysis = Analysis(settings.analysis)
     discovery = Discovery(root, settings, progress, cancellation)
     registry = RecognitionRegistry()
     files, coverage, evidence, diagnostics = [], [], [], []
@@ -78,6 +80,8 @@ def scan(root, settings: DiscoverySettings = DiscoverySettings(), progress=None,
                           physical_lines=lines, size_bytes=item.size,
                           recognition_basis=rec.basis, language_candidates=rec.candidates)
         files.append(file)
+        analysis.inspect(item.path, file, text.encode("utf-8") if text is not None else None,
+                         not item.excluded and not item.failure)
         status = (Status.EXCLUDED if item.excluded else Status.FAILED if item.failure else
                   Status.UNSUPPORTED if rec.language else Status.UNCLASSIFIED)
         has_failures |= bool(item.failure)
@@ -143,7 +147,7 @@ def scan(root, settings: DiscoverySettings = DiscoverySettings(), progress=None,
                       resource_budget=ResourceBudget(max_file_bytes=settings.max_file_bytes,
                                                      max_memory_bytes=512 * 1024 * 1024,
                                                      max_workers=1, max_files=settings.max_files))
-    return ScanResult(scan_id=identity('scan', repr((files, gaps, settings.max_files, settings.max_entries,
+    result = ScanResult(scan_id=identity('scan', repr((files, gaps, settings.max_files, settings.max_entries,
                                                     settings.max_depth, settings.max_total_bytes))),
                       tool_version=version('argus'), scope=scope, status=Status.PARTIAL,
                       files=tuple(files), coverage=Coverage(files=tuple(sorted(coverage, key=lambda f: f.file_id)),
@@ -154,3 +158,5 @@ def scan(root, settings: DiscoverySettings = DiscoverySettings(), progress=None,
                       evidence=tuple(sorted(evidence, key=lambda e: e.id)), diagnostics=tuple(diagnostics),
                       limitations=LIMITATIONS, inventory=summary,
                       execution=ExecutionMetadata(cancelled=discovery.cancelled, limitations=(LIMITATIONS[5],)))
+
+    return analysis.finish(result)

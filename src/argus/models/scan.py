@@ -9,7 +9,7 @@ from .credentials import CredentialExposure
 from .execution import ExecutionMetadata, ResourceBudget, RootScope
 from .source import Evidence, Module, SourceFile, SourceLocation, Symbol
 
-SCHEMA_VERSION = "1.1.0"
+SCHEMA_VERSION = "1.2.0"
 DISCLAIMER = (
     "Argus is a software architecture analysis and decision-support tool. It does not certify or "
     "guarantee software safety, security, correctness, reliability, regulatory compliance, or AI "

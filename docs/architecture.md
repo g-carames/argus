@@ -1,3 +1,12 @@
+> Milestone 3 update: parsing/extraction, conservative resolution, NetworkX graph
+> analysis and structural rules are now implemented in `src/argus/analysis/`.
+> See [Milestone 3](milestone-3.md), [language capabilities](language-support.md),
+> [rules](rules/index.md) and [limitations](limitations.md) for current behavior.
+> Historical milestone descriptions below describe their original scope.
+> JSON schema is now 1.2.0: existing records represent analysis data; the writer adds
+> per-language/per-capability coverage counts (including configuration formats);
+> no parser or NetworkX objects cross the reporting boundary.
+
 # Backend architecture — foundational milestone
 
 ## Implemented scope

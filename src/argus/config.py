@@ -10,6 +10,27 @@ from .errors import DirectorySymlinkError
 
 
 @dataclass(frozen=True)
+class AnalysisSettings:
+    rule_thresholds: tuple[tuple[str, float], ...] = ()
+    disabled_rules: tuple[str, ...] = ()
+
+    @property
+    def thresholds(self):
+        return dict(self.rule_thresholds)
+
+    def __post_init__(self):
+        from math import isfinite
+        from .analysis.rules import REGISTRY, BY_ID
+        allowed = {r.parameter for r in REGISTRY}
+        if (not isinstance(self.rule_thresholds, tuple) or
+            any(not isinstance(p, tuple) or len(p) != 2 or p[0] not in allowed or
+                type(p[1]) not in (int, float) or not isfinite(p[1]) or p[1] < 0 for p in self.rule_thresholds) or
+            len(dict(self.rule_thresholds)) != len(self.rule_thresholds) or
+            not isinstance(self.disabled_rules, tuple) or any(r not in BY_ID for r in self.disabled_rules)):
+            raise ValueError('Invalid analysis settings')
+
+
+@dataclass(frozen=True)
 class DiscoverySettings:
     max_file_bytes: int = 2 * 1024 * 1024
     max_files: int = 20000
@@ -18,11 +39,14 @@ class DiscoverySettings:
     max_total_bytes: int = 256 * 1024 * 1024
     max_ignore_bytes: int = 65536
     excludes: tuple[str, ...] = ()
+    analysis: AnalysisSettings = AnalysisSettings()
 
     def __post_init__(self):
         for key, value in vars(self).items():
-            if key != 'excludes' and (type(value) is not int or not 0 < value <= 10**9):
+            if key not in ('excludes', 'analysis') and (type(value) is not int or not 0 < value <= 10**9):
                 raise ValueError('Resource limits must be positive integers at most 1000000000')
+        if not isinstance(self.analysis, AnalysisSettings):
+            raise ValueError('Invalid analysis settings')
         if (not isinstance(self.excludes, tuple) or len(self.excludes) > 1000
                 or any(type(x) is not str or len(x) > 4096 for x in self.excludes)):
             raise ValueError('Invalid exclusion patterns')
@@ -52,16 +76,26 @@ def load_settings(path=None, excludes=()) -> DiscoverySettings:
     if path is not None:
         try:
             data = tomllib.loads(read_regular(path, 65536).decode('utf-8'))
-            if set(data) != {'discovery'} or type(data['discovery']) is not dict:
+            if not set(data) <= {'discovery', 'analysis'} or not data or type(data.get('discovery', {})) is not dict:
                 raise ValueError
-            values = data['discovery']
+            values = data.get('discovery', {})
+            if 'analysis' in values:
+                raise ValueError
+            analysis = data.get('analysis', {})
+            if not isinstance(analysis, dict) or not set(analysis) <= {'thresholds', 'disabled_rules'}:
+                raise ValueError
+            thresholds = analysis.get('thresholds', {})
+            disabled = analysis.get('disabled_rules', [])
+            if not isinstance(thresholds, dict) or not isinstance(disabled, list):
+                raise ValueError
+            values['analysis'] = AnalysisSettings(rule_thresholds=tuple(sorted(thresholds.items())), disabled_rules=tuple(disabled))
             if 'excludes' in values:
                 if type(values['excludes']) is not list:
                     raise ValueError
                 values['excludes'] = tuple(values['excludes'])
             settings = DiscoverySettings(**values)
         except (OSError, ValueError, TypeError, UnicodeError):
-            raise ValueError('Configuration is unreadable or invalid; expected a [discovery] TOML table') from None
+            raise ValueError('Configuration is unreadable or invalid; expected supported [discovery]/[analysis] TOML tables') from None
     return replace(settings, excludes=settings.excludes + tuple(excludes))
 
 

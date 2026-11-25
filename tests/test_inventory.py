@@ -110,7 +110,8 @@ def test_analysis_is_unavailable_unknown_ambiguous_binary(tmp_path):
     assert files['binary.dat']['physical_lines'] is None
     assert data['status'] == 'partial'
     assert data['findings'] == [] and data['credentials'] is None
-    assert all(f['status'] in ('unsupported', 'unclassified') for f in data['coverage']['files'])
+    assert next(f for f in data['coverage']['files'] if f['file_id'] == files['source.py']['id'])['status'] == 'failed'
+    assert all(f['status'] == 'unclassified' for f in data['coverage']['files'] if f['file_id'] != files['source.py']['id'])
     assert all(c['status'] == 'unsupported' for c in data['coverage']['categories'])
     assert data['disclaimer'] == DISCLAIMER
     section = data['not_reviewed_portions_of_the_code']

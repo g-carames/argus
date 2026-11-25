@@ -44,13 +44,12 @@ Local-first, multilingual software architecture intelligence and static risk ana
 
 ## Current development status
 
-Milestone 2 implements a functional local CLI, bounded recursive discovery, broad
-language/format recognition, manifest-based technology observations, and hierarchical
-inventory. No language analysis adapter, architectural/security/credential/risk rule,
-graph algorithm, remediation storage, Markdown renderer, HTML renderer, or graphical
-interface is implemented. Recognition is independent from analysis capability.
-Milestone 2.1 adds descriptor-validated relative/parent-directory paths and specific,
-sanitized CLI diagnostics while retaining the strict symbolic-link policy.
+Milestone 3 adds multilingual static extraction, conservative dependency resolution,
+NetworkX graph analysis and nine configurable structural architecture/maintainability
+rules to the validated discovery infrastructure. Detailed language capabilities,
+rule parameters and measured validation results are linked below. Security,
+credentials, framework, reliability, AI and cost rules remain unavailable.
+No remediation storage, Markdown/HTML renderer or graphical interface is implemented.
 
 Requires Python >=3.12 and uv:
 
@@ -80,8 +79,8 @@ recognition lists, coverage definitions, safety behavior and validation.
 See [Milestone 2.1 validation](docs/milestone-2.1.md) for diagnostic codes, regression
 coverage, and the independent seven-repository inventory revalidation.
 
-Inventory may complete while the scan remains `partial`: every file and analysis
-category is **Not Reviewed** because no analysis adapters or risk rules exist.
+Inventory may complete while the scan remains `partial`: supported files receive
+listed structural analysis, while unavailable capabilities remain **Not Reviewed**.
 Installation can download free dependencies; backend operation is entirely local.
 
 See [backend architecture](docs/architecture.md) and the
@@ -113,9 +112,9 @@ The existing JSON serializer operates locally, and planned report formats must d
 
 The objective is to make AI-assisted software development more transparent, iterative, and technically responsible without sacrificing the productivity benefits of generative AI.
 
-## Planned Analysis Capabilities
+## Analysis Capabilities
 
-The following capabilities remain product goals, not implemented risk analysis features:
+Milestone 3 implements local structural architecture and maintainability analysis. Other categories below remain product goals:
 
 - Architectural integrity: dependency graphs, module relationships, architectural layers, dependency direction and type, circular dependencies, centrality, coupling, and blast radius indicators.
 - Security: evidence-backed indicators of weak security and authorization boundaries.
@@ -131,9 +130,31 @@ Rules are intended to be independently extensible and configurable. Findings mus
 
 Planned reporting includes versioned JSON, deterministic structured Markdown for AI-agent remediation, and an independently developed interactive HTML Architecture Explorer. Only versioned JSON reporting is currently implemented. Repository-derived evidence is untrusted data and must remain separate from trusted rule-authored remediation instructions.
 
+## Milestone 3 implementation
+
+Python, JavaScript, TypeScript, JSX and TSX now produce entities, static imports,
+resolved/unresolved relationships, module graphs, NetworkX metrics and nine
+configurable architecture/maintainability heuristics. SQL, HTML, CSS, YAML, JSON,
+TOML, Bash/shell and Dockerfile have narrower extraction capabilities.
+Security, credentials, AI, cost and other deferred analysis categories remain unavailable.
+No UI, HTML templates, automatic remediation, commits or remote reporting are included.
+
+Install prepared dependencies with `uv sync --locked`; run `uv run argus scan PATH`.
+Scans operate offline without importing target code. JSON retains explicit partial
+coverage, failures, unsupported portions and the mandatory disclaimer.
+
+- [Rule catalog](docs/rules/index.md)
+- [Architecture rules](docs/rules/architecture.md)
+- [Maintainability rules](docs/rules/maintainability.md)
+- [Exact language capability matrix](docs/language-support.md)
+- [Configuration and thresholds](docs/configuration.md)
+- [Analysis and graph limitations](docs/limitations.md)
+- [Measured independent laboratory evaluation](docs/milestone-3-evaluation.md)
+- [Implementation and validation record](docs/milestone-3.md)
+
 ## Multilingual Support and Coverage Transparency
 
-The language-agnostic core is intended to support modular adapters, beginning with Python. Python, JavaScript, TypeScript, JSX, and TSX are primary release targets. Next priorities include SQL, HTML, CSS, JSON, YAML, TOML, Bash/shell, and Dockerfile; further priorities include Go, Rust, Java, C#, C, C++, Swift, Kotlin, Dart, PHP, Ruby, and HCL/Terraform. None currently has an implemented analyzer.
+The language-agnostic core is intended to support modular adapters, beginning with Python. Python, JavaScript, TypeScript, JSX, and TSX are primary release targets. Next priorities include SQL, HTML, CSS, JSON, YAML, TOML, Bash/shell, and Dockerfile; further priorities include Go, Rust, Java, C#, C, C++, Swift, Kotlin, Dart, PHP, Ruby, and HCL/Terraform. Primary adapters now implement static parsing, extraction, conservative resolution and structural rules. Additional formats have limited extraction capabilities; see the capability matrix below.
 
 Language and configuration-format recognition must remain independent of analysis capability. Parsing alone must never imply architectural or security review. Future adapters must declare parsing, symbols, structure, dependency extraction/resolution, complexity, architecture, security, credentials, frameworks, AI-specific, and configuration capabilities separately. Framework identification must require source or configuration evidence.
 

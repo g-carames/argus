@@ -1,4 +1,4 @@
-"""Offline inventory CLI. Machine-readable stdout; controlled stderr diagnostics."""
+"""Offline static analysis CLI. Machine-readable stdout; controlled stderr diagnostics."""
 import argparse
 from importlib.metadata import version
 import os
@@ -49,10 +49,10 @@ def write_output(path, report):
 
 
 def main(argv=None):
-    parser = SafeParser(description='Local offline repository inventory. No static analysis adapters or risk rules are implemented.')
+    parser = SafeParser(description='Local offline repository inventory and static architecture analysis.')
     parser.add_argument('--version', action='version', version=version('argus'))
     subs = parser.add_subparsers(dest='command')
-    command = subs.add_parser('scan', help='Inventory a local directory; analysis remains Not Reviewed')
+    command = subs.add_parser('scan', help='Analyze static architecture in a local directory; unsupported portions disclosed')
     command.add_argument('path', metavar='PATH')
     command.add_argument('--format', choices=['json'], default='json', help='Versioned JSON (default)')
     command.add_argument('--output', metavar='FILE', help='Explicit new .json/.txt report; never overwrite')
@@ -85,7 +85,7 @@ def main(argv=None):
                 raise CliError('OUTPUT_WRITE_FAILED') from None
         if args.verbose:
             print(f'argus: inventory {result.inventory.status.value}; {len(result.files)} files; '
-                  f'{len(result.coverage.inventory_gaps)} gaps; analysis Not Reviewed', file=sys.stderr)
+                  f'{len(result.coverage.inventory_gaps)} gaps; {len(result.findings)} structural findings; analysis partial', file=sys.stderr)
         if result.execution.cancelled:
             return 130
         if result.diagnostics or any(g.status.value == 'failed' for g in result.coverage.inventory_gaps):

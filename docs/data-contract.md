@@ -1,4 +1,20 @@
-# Argus JSON contract 1.1.0
+> Milestone 3 update: parsing/extraction, conservative resolution, NetworkX graph
+> analysis and structural rules are now implemented in `src/argus/analysis/`.
+> See [Milestone 3](milestone-3.md), [language capabilities](language-support.md),
+> [rules](rules/index.md) and [limitations](limitations.md) for current behavior.
+> Historical milestone descriptions below describe their original scope.
+> JSON schema is now 1.2.0: existing records represent analysis data; the writer adds
+> per-language/per-capability coverage counts (including configuration formats);
+> no parser or NetworkX objects cross the reporting boundary.
+
+# Argus JSON contract 1.2.0
+
+Milestone 3 adds `coverage.language_analysis_coverage`: counts by language, capability
+and status over all inventoried files including configurations, exclusions and failures.
+The existing `coverage.by_language` remains the source-file ratio projection.
+Modules, symbols, relationships, metrics, evidence and findings use the existing
+typed fields. Unknown metrics remain null with reasons. No raw parser/library objects
+are serialized. The pre-Milestone-3 scope descriptions below are historical.
 
 ## Contract conventions
 

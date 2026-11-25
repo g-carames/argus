@@ -3,7 +3,7 @@
 MESSAGES = {
     'INPUT_UNAVAILABLE': 'Scan input must be an existing accessible directory.',
     'INPUT_SYMLINK_COMPONENT': 'Scan input contains a symbolic-link component; use a non-symlink path. On macOS, use /private/tmp instead of /tmp.',
-    'CONFIG_INVALID': 'Configuration is unreadable or invalid; expected supported settings in a [discovery] TOML table and valid exclusion patterns.',
+    'CONFIG_INVALID': 'Configuration is unreadable or invalid; expected supported [discovery]/[analysis] TOML settings and valid exclusion patterns.',
     'OUTPUT_PARENT_UNAVAILABLE': 'Output parent must be an existing accessible directory.',
     'OUTPUT_PARENT_SYMLINK': 'Output parent contains a symbolic-link component; use a non-symlink path. On macOS, use /private/tmp instead of /tmp.',
     'OUTPUT_ALREADY_EXISTS': 'Output destination already exists; Argus never overwrites existing objects.',

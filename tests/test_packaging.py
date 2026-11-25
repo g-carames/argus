@@ -14,7 +14,7 @@ def test_installed_entrypoint(args):
     assert (version("argus") if args == ["--version"] else "Local offline repository inventory") in completed.stdout
 
 
-def test_scan_inventory_does_not_claim_analysis(tmp_path):
+def test_scan_reports_partial_static_analysis(tmp_path):
     import json
     (tmp_path / "sample.py").write_text("print('synthetic')\n")
     completed = subprocess.run([str(Path(sys.executable).with_name("argus")), "scan", str(tmp_path)],
@@ -23,7 +23,9 @@ def test_scan_inventory_does_not_claim_analysis(tmp_path):
     report = json.loads(completed.stdout)
     assert report["inventory"]["status"] == "completed"
     assert report["status"] == "partial"
-    assert report["coverage"]["files"][0]["status"] == "unsupported"
+    assert report["coverage"]["files"][0]["status"] == "partial"
+    assert len(report["modules"]) == 1
+    assert all(c["status"] == "unsupported" for c in report["coverage"]["categories"] if c["category"] in ("security", "credentials", "ai_specific", "cost_efficiency"))
 
 
 def test_python_compatibility_metadata():
