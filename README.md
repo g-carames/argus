@@ -22,7 +22,7 @@ A software system can pass linting checks, compile successfully, and satisfy its
 
 Argus is designed to introduce an independent, deterministic layer of architectural scrutiny into AI-assisted software development.
 
-Rather than relying on the same generative intelligence responsible for producing the code to evaluate its own work, Argus uses static analysis, graph algorithms, and configurable rules to identify observable structural risks and provide evidence-backed findings.
+Rather than relying on the same generative intelligence responsible for producing the code to evaluate its own work, Argus is intended to use static analysis, graph algorithms, and configurable rules to identify observable structural risks and provide evidence-backed findings.
 
 Its purpose is not to discourage vibe coding, but to make AI-assisted development more accountable, transparent, and technically responsible.
 
@@ -47,8 +47,8 @@ Local-first, multilingual software architecture intelligence and static risk ana
 Milestone 1 establishes backend contracts only: immutable typed models, component
 interfaces, explicit coverage accounting, deterministic JSON serialization, and
 validation tests. No repository scanner, language analysis, credential detection,
-cost rules, graph algorithms, remediation storage, or graphical interface is
-implemented. Broad multilingual analysis is a core objective; Python, JavaScript,
+cost rules, graph algorithms, remediation storage, AI-agent Markdown renderer,
+HTML renderer, or graphical interface is implemented. Broad multilingual analysis is a core objective; Python, JavaScript,
 TypeScript, JSX, and TSX are primary release targets, not currently supported analyzers.
 
 Requires Python >=3.12 and uv:
@@ -75,3 +75,61 @@ Generated reports and local records belong in ignored `argus-reports/`,
 patterns do not protect arbitrary output paths. Do not commit real credentials or
 analysis reports. The graphical interface remains reserved for manual development
 by the project owner in collaboration with ChatGPT.
+
+## Closing the AI-Assisted Development Loop
+
+Argus is designed not only to identify architectural risks, but also to facilitate their remediation.
+
+In addition to human-readable architectural reports and machine-readable analysis results, Argus aims to generate AI-agent-compatible remediation reports containing structured findings, source locations, supporting evidence, recommended corrective actions, and validation criteria.
+
+Once implemented, these reports could be provided directly to AI coding agents such as OpenAI Codex, Anthropic Claude Code, Google Gemini, or other development assistants, enabling targeted remediation of identified issues.
+
+By introducing an independent, deterministic analysis layer between AI-generated implementation and subsequent remediation, Argus aims to establish a more accountable development workflow:
+
+**Generate → Analyze → Review → Remediate → Reanalyze**
+
+Argus does not automatically authorize or apply modifications to the analyzed codebase. Developers retain control over which findings are addressed, which changes are accepted, and whether additional verification is required.
+
+The existing JSON serializer operates locally, and planned report formats must do so as well. Users should review and sanitize sensitive architectural information before voluntarily sharing reports with external AI services.
+
+The objective is to make AI-assisted software development more transparent, iterative, and technically responsible without sacrificing the productivity benefits of generative AI.
+
+## Planned Analysis Capabilities
+
+The following capabilities are product goals, not implemented analysis features in Milestone 1:
+
+- Architectural integrity: dependency graphs, module relationships, architectural layers, dependency direction and type, circular dependencies, centrality, coupling, and blast radius indicators.
+- Security: evidence-backed indicators of weak security and authorization boundaries.
+- Credential exposure and remediation: detection in source/configuration and optionally accessible Git history, protected local reuse tracking, and separate removal, replacement, rotation, and revocation records. Removal or replacement must never be treated as proof of revocation; user-attested and independently verified remediation must remain distinct.
+- Maintainability: unnecessary complexity and structural weaknesses.
+- Dependency health: fragile dependency structures and related risks.
+- Reliability: static indicators of fragile behavior and failure risks.
+- Performance and scalability: potential bottlenecks and missing resource safeguards.
+- AI-specific architectural risks: unsafe LLM integrations, autonomous agent tools, and evidence-backed risks in AI-assisted applications, without treating tool attribution as evidence of risk.
+- Cost efficiency: potential excessive consumption from repeated or unbounded model/agent calls, embeddings, context, retries, queries, polling, storage, uploads, subscriptions, jobs, autoscaling, logging, and scheduling; missing limits, quotas, pagination, cleanup, and potentially inefficient model selection. Static exposure is not measured operating expense or guaranteed savings. Any future local estimates must use explicit hypothetical pricing and usage assumptions, without billing integrations or paid APIs.
+
+Rules are intended to be independently extensible and configurable. Findings must retain identifiers, severity, confidence, locations, supporting evidence, risk explanations, corrective actions, validation criteria, remediation status, and detection limitations. Observed dependencies must remain distinct from inferred relationships; unresolved references must not become invented edges. No aggregate safety score is planned.
+
+Planned reporting includes versioned JSON, deterministic structured Markdown for AI-agent remediation, and an independently developed interactive HTML Architecture Explorer. Only JSON serialization of supplied contract records is currently implemented. Repository-derived evidence is untrusted data and must remain separate from trusted rule-authored remediation instructions.
+
+## Multilingual Support and Coverage Transparency
+
+The language-agnostic core is intended to support modular adapters, beginning with Python. Python, JavaScript, TypeScript, JSX, and TSX are primary release targets. Next priorities include SQL, HTML, CSS, JSON, YAML, TOML, Bash/shell, and Dockerfile; further priorities include Go, Rust, Java, C#, C, C++, Swift, Kotlin, Dart, PHP, Ruby, and HCL/Terraform. None currently has an implemented analyzer.
+
+Language and configuration-format recognition must remain independent of analysis capability. Parsing alone must never imply architectural or security review. Future adapters must declare parsing, symbols, structure, dependency extraction/resolution, complexity, architecture, security, credentials, frameworks, AI-specific, and configuration capabilities separately. Framework identification must require source or configuration evidence.
+
+Every generated report includes **Not Reviewed Portions of the Code**. The current contracts and JSON serializer represent unsupported languages/formats, privacy-controlled repository-relative locations, known unreviewed physical lines, exclusions, unreadable/unparseable files, unavailable or disabled capabilities, and unevaluated categories/rules, with reasons and implications. The future scanner must supply those observations; the serializer does not discover them.
+
+Coverage distinguishes completed work within explicit scope from partial, unsupported, excluded, failed, disabled, and unclassified files. File, language, line, rule, and category metrics require defined denominators; unknown values remain unavailable. Pruned inventories cannot establish repository-wide totals. File or line coverage does not establish semantic completeness, runtime correctness, or safety, and mixed-language gaps can invalidate graph completeness and architectural conclusions. A finding disappearing because coverage was lost must not be reported as resolved.
+
+## Privacy and Human Oversight
+
+Argus's core must operate locally and offline, without paid services, cloud infrastructure, telemetry, or analytics. Analyzed source code, credentials, and analysis results must never be transmitted automatically. Installation may retrieve free dependencies; future parsers and grammars must be prepared before scans, with no runtime downloads.
+
+Analyzed repositories are untrusted input. Future analysis must not execute project scripts, import target modules, install target dependencies, modify the target codebase, or follow symbolic links outside the authorized directory. Credential analysis must use its own explicit scope and authorization policy, never authenticate with discovered credentials, and never expose full credential values in reports, logs, or persistent records.
+
+Current records and JSON escaping are not a credential detector or general-purpose sanitizer. Callers must supply privacy-safe text; dedicated path withholding does not sanitize free-text fields. Reports and local remediation records remain confidential and should stay out of Git. Users retain control over any voluntary external sharing and all remediation decisions.
+
+## Disclaimer
+
+Argus is a software architecture analysis and decision-support tool. It does not certify or guarantee software safety, security, correctness, reliability, regulatory compliance, or AI alignment. Findings are derived from static analysis, observable source-code relationships, configurable rules, and heuristic indicators. Analysis may produce false positives, false negatives, incomplete results, or inaccurate architectural inferences. The absence of findings does not establish the absence of vulnerabilities, particularly where portions of the codebase have not been reviewed. Argus is intended to complement, not replace, professional security assessments, runtime analysis, comprehensive software testing, code review, and qualified human engineering judgment.
