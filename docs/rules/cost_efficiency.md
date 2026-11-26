@@ -6,17 +6,19 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 
 ## ARGUS-COST-001 — Database call inside loop
 
-- Version: 1.0.0; implementation status: implemented.
+- Version: 1.1.0; implementation status: implemented.
 - Primary category: cost_efficiency; secondary categories: performance_scalability.
 - Languages: python, javascript, typescript, jsx, tsx.
 - Required capabilities: structural_analysis.
 - Evaluated parameter: `occurrence_cost_001`; default threshold: `0`; strict greater-than.
 - Methodology: execute/executemany/query call lexically within for/while (Python includes async for); nested function scopes reset loop context.
+- Contextual investigation: Same bounded iteration and operation-summary methodology as AI-002 for execute/executemany/query candidates. No receiver/database typing or database result-limit enforcement. Bounded observations remain findings at their original severity; bounds do not establish acceptable cost.
+- Contextual tests: `tests/test_semantic_context.py`.
 - Default severity: medium; confidence criteria: medium: exact named syntax observed; runtime binding, exploitation and omitted safeguards unverified.
 - Why it matters: Observed static patterns may expose data, execution boundaries or resources. Cost consequences are potential, not measured expense.
 - Positive example: for row in rows: cursor.execute(query, row).
 - Negative example: cursor.executemany(query, rows).
 - Remediation: Review the observed boundary; use safe APIs, explicit validated limits and appropriate batching or error handling.
 - Validation: Re-scan the same scope and verify the risky pattern is removed or document a reviewed exception.
-- Limitations and false positives: Syntactic matching only; aliases supported for Python imports and JS child_process named imports. Shadowing, indirect calls, wrappers, dataflow, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere.
+- Limitations and false positives: Initial syntactic matching; contextual supplement applies only where explicitly documented. Aliases supported for Python imports and JS child_process named imports. General shadowing, dynamic indirect calls, arbitrary wrappers, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere. Contextual refinement is bounded and partial; see docs/milestone-5.md for exact supported scopes and budgets.
 - Associated automated tests: `tests/test_risk_rules.py` (parameterized positive, negative and disabled cases); `tests/test_analysis_graphs.py` and `tests/test_analysis_parsing.py` cover measurement primitives.

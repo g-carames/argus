@@ -239,3 +239,14 @@ service/component/root selection and output/finding budgets. The future writer m
 retain context, coverage, disclaimer, stable ordering, continuation/truncation metadata,
 and evidence/instruction separation. It must not silently drop context or treat a
 filtered export as comprehensive. Filtering and Markdown generation are not implemented.
+
+
+## Milestone 5 contextual subset
+
+See [Milestone 5](milestone-5.md) for exact methodology, safeguards, assumptions,
+fixed resource budgets, examples, tests and deferred scope. Python adds bounded
+structured flow and local function contexts; JavaScript/TypeScript/JSX/TSX add
+operation summaries through existing resolved calls. No general framework security,
+database-limit enforcement or cross-file value flow. Findings retain observations;
+uncertain safeguards cannot suppress them. Budget/unsupported-control diagnostics
+appear in **Not Reviewed Portions of the Code**. No semantic completeness claim.

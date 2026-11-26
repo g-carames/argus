@@ -17,7 +17,7 @@ from ..models.scan import Diagnostic
 from ..models.source import SourceLocation, Evidence
 from ..privacy import identity
 
-LIMITATIONS = ('Limited syntactic security, credential, reliability, AI and cost rules; no authentication, authorization, taint analysis, framework security, dependency-health or safety certification. Credential history, ignored/tracked overrides, reuse, persistence and remediation tracking are unavailable.',
+LIMITATIONS = ('Contextual analysis is bounded and partial: Python local structured flow and limited function calls; JS-family operation summaries only. No general sanitizer, authentication, retry, shared client timeout or database-limit enforcement. Semantic budget/unsupported-control diagnostics identify incomplete work; findings retain observations.','Limited syntactic security, credential, reliability, AI and cost rules; no authentication, authorization, general taint analysis or framework security, dependency-health or safety certification. Credential history, ignored/tracked overrides, reuse, persistence and remediation tracking are unavailable.',
                'Function/class containment is extracted; partial direct/imported call bindings and inferred frontend HTTP matches only; no general method, inheritance or cross-language type resolution, embedded-language analysis, runtime loading, runtime selection of conditional package exports or executable configuration resolution. Identifier labels are opaque for privacy.',
                'HTTP matching is bounded to 1000000 endpoint/request comparisons; exhausted matching remains unresolved with diagnostics. Routes, SDK calls and bindings are syntactic candidates, not runtime relationships. SQL is tokenized, not syntax validated. Dockerfile instruction recognition does not validate argument or embedded shell semantics.',
                'Extraction retains at most 50000 entities and 100000 import/call/request declarations, rejecting further files with explicit failures. Parsing uses file-size, 200000-node and 256-depth traversal budgets; Tree-sitter parsing timeout is one second; native parsing/extraction isolated per file with five-second parent deadline, three CPU seconds and core dumps disabled. Memory hard limits are not enforced. Python AST/JSON/TOML and SQL tokenization have no hard time or memory isolation.',)
@@ -168,6 +168,14 @@ class Analysis:
         graph = NetworkXBackend().analyze(Graph(nodes=tuple(sorted(nodes, key=lambda n: n.id)), relationships=tuple(sorted(relationships, key=lambda r: r.id))))
         for metric in graph.metrics:
             measured[metric.scope_id, metric.name] = metric.value
+        from .contextual import investigate, attach, relationship_index
+        additions, assessments, semantic_gaps = investigate(self.facts, graph, evidence, file_by_id)
+        for fid, hits in additions.items():
+            self.risk_hits.setdefault(fid, []).extend(hits)
+        for fid, gaps in sorted(semantic_gaps.items()):
+            for gap in sorted(gaps):
+                diagnostics.append(Diagnostic(code='semantic_analysis_incomplete', stage='analysis',
+                    message=gap, location=SourceLocation(path=file_by_id[fid].path, start_line=1, start_column=1)))
         findings = []
         rule_coverages = []
         primary_ids = {facts.module.id for fid, facts in self.facts.items() if file_by_id[fid].language in PRIMARY}
@@ -236,6 +244,10 @@ class Analysis:
                             consumption_mechanism=rule.methodology,
                             potential_financial_consequences='Repeated or unconstrained operations may increase provider or infrastructure consumption; no prices, usage or losses measured.',
                             limitations=('Static indicator only; runtime limits, batching and caching may exist elsewhere.',)) if cost else None))
+        related_index = relationship_index(graph, evidence)
+        findings = [attach(f, f.affected_ids[0], assessments, related_index, semantic_gaps)
+                    if f.rule_id.startswith(('ARGUS-SEC-', 'ARGUS-REL-', 'ARGUS-AI-', 'ARGUS-COST-', 'ARGUS-CRED-')) else f
+                    for f in findings]
         coverage = []
         for entry in result.coverage.files:
             file = file_by_id[entry.file_id]

@@ -12,13 +12,15 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 - Required capabilities: structural_analysis.
 - Evaluated parameter: `occurrence_rel_001`; default threshold: `0`; strict greater-than.
 - Methodology: Python bare except or handler naming Exception/BaseException, including tuples.
+- Contextual investigation: No rule-specific semantic refinement; structural measurement or original pattern retained. Semantic applicability is undetermined where unavailable.
+- Contextual tests: not applicable.
 - Default severity: medium; confidence criteria: medium: exact named syntax observed; runtime binding, exploitation and omitted safeguards unverified.
 - Why it matters: Observed static patterns may expose data, execution boundaries or resources. Cost consequences are potential, not measured expense.
 - Positive example: except Exception: recover().
 - Negative example: except ValueError: recover().
 - Remediation: Review the observed boundary; use safe APIs, explicit validated limits and appropriate batching or error handling.
 - Validation: Re-scan the same scope and verify the risky pattern is removed or document a reviewed exception.
-- Limitations and false positives: Syntactic matching only; aliases supported for Python imports and JS child_process named imports. Shadowing, indirect calls, wrappers, dataflow, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere.
+- Limitations and false positives: Initial syntactic matching; contextual supplement applies only where explicitly documented. Aliases supported for Python imports and JS child_process named imports. General shadowing, dynamic indirect calls, arbitrary wrappers, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere.
 - Associated automated tests: `tests/test_risk_rules.py` (parameterized positive, negative and disabled cases); `tests/test_analysis_graphs.py` and `tests/test_analysis_parsing.py` cover measurement primitives.
 
 ## ARGUS-REL-002 — Silently swallowed exception
@@ -29,30 +31,34 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 - Required capabilities: structural_analysis.
 - Evaluated parameter: `occurrence_rel_002`; default threshold: `0`; strict greater-than.
 - Methodology: Python handler body consists exclusively of pass or constant expression statements; supersedes broad-handler finding at the same handler.
+- Contextual investigation: No rule-specific semantic refinement; structural measurement or original pattern retained. Semantic applicability is undetermined where unavailable.
+- Contextual tests: not applicable.
 - Default severity: medium; confidence criteria: medium: exact named syntax observed; runtime binding, exploitation and omitted safeguards unverified.
 - Why it matters: Observed static patterns may expose data, execution boundaries or resources. Cost consequences are potential, not measured expense.
 - Positive example: except ValueError: pass.
 - Negative example: except ValueError: raise.
 - Remediation: Review the observed boundary; use safe APIs, explicit validated limits and appropriate batching or error handling.
 - Validation: Re-scan the same scope and verify the risky pattern is removed or document a reviewed exception.
-- Limitations and false positives: Syntactic matching only; aliases supported for Python imports and JS child_process named imports. Shadowing, indirect calls, wrappers, dataflow, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere.
+- Limitations and false positives: Initial syntactic matching; contextual supplement applies only where explicitly documented. Aliases supported for Python imports and JS child_process named imports. General shadowing, dynamic indirect calls, arbitrary wrappers, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere.
 - Associated automated tests: `tests/test_risk_rules.py` (parameterized positive, negative and disabled cases); `tests/test_analysis_graphs.py` and `tests/test_analysis_parsing.py` cover measurement primitives.
 
 ## ARGUS-REL-003 — Missing explicit request timeout
 
-- Version: 1.0.0; implementation status: implemented.
+- Version: 1.1.0; implementation status: implemented.
 - Primary category: reliability; secondary categories: none.
 - Languages: python.
 - Required capabilities: structural_analysis.
 - Evaluated parameter: `occurrence_rel_003`; default threshold: `0`; strict greater-than.
 - Methodology: Python requests.get/post/put/delete/patch/head/options/request calls without timeout keyword; **kwargs makes timeout unknown and suppresses finding.
+- Contextual investigation: Python positive integer timeout values through local assignments, function parameters and defaults. Configured but unknown/nonpositive timeouts produce unverified candidates. **kwargs remains unknown under inherited syntax scope; requests sessions, client constructors and external infrastructure unavailable.
+- Contextual tests: `tests/test_semantic_context.py`.
 - Default severity: medium; confidence criteria: medium: exact named syntax observed; runtime binding, exploitation and omitted safeguards unverified.
 - Why it matters: Observed static patterns may expose data, execution boundaries or resources. Cost consequences are potential, not measured expense.
 - Positive example: requests.get(url).
 - Negative example: requests.get(url, timeout=5).
 - Remediation: Review the observed boundary; use safe APIs, explicit validated limits and appropriate batching or error handling.
 - Validation: Re-scan the same scope and verify the risky pattern is removed or document a reviewed exception.
-- Limitations and false positives: Syntactic matching only; aliases supported for Python imports and JS child_process named imports. Shadowing, indirect calls, wrappers, dataflow, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere.
+- Limitations and false positives: Initial syntactic matching; contextual supplement applies only where explicitly documented. Aliases supported for Python imports and JS child_process named imports. General shadowing, dynamic indirect calls, arbitrary wrappers, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere. Contextual refinement is bounded and partial; see docs/milestone-5.md for exact supported scopes and budgets.
 - Associated automated tests: `tests/test_risk_rules.py` (parameterized positive, negative and disabled cases); `tests/test_analysis_graphs.py` and `tests/test_analysis_parsing.py` cover measurement primitives.
 
 ## ARGUS-REL-004 — Blocking call in async function
@@ -63,11 +69,13 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 - Required capabilities: structural_analysis.
 - Evaluated parameter: `occurrence_rel_004`; default threshold: `0`; strict greater-than.
 - Methodology: Python time.sleep or requests HTTP call lexically inside async function; nested synchronous functions excluded.
+- Contextual investigation: No rule-specific semantic refinement; structural measurement or original pattern retained. Semantic applicability is undetermined where unavailable.
+- Contextual tests: not applicable.
 - Default severity: medium; confidence criteria: medium: exact named syntax observed; runtime binding, exploitation and omitted safeguards unverified.
 - Why it matters: Observed static patterns may expose data, execution boundaries or resources. Cost consequences are potential, not measured expense.
 - Positive example: async def f(): time.sleep(1).
 - Negative example: async def f(): await asyncio.sleep(1).
 - Remediation: Review the observed boundary; use safe APIs, explicit validated limits and appropriate batching or error handling.
 - Validation: Re-scan the same scope and verify the risky pattern is removed or document a reviewed exception.
-- Limitations and false positives: Syntactic matching only; aliases supported for Python imports and JS child_process named imports. Shadowing, indirect calls, wrappers, dataflow, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere.
+- Limitations and false positives: Initial syntactic matching; contextual supplement applies only where explicitly documented. Aliases supported for Python imports and JS child_process named imports. General shadowing, dynamic indirect calls, arbitrary wrappers, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere.
 - Associated automated tests: `tests/test_risk_rules.py` (parameterized positive, negative and disabled cases); `tests/test_analysis_graphs.py` and `tests/test_analysis_parsing.py` cover measurement primitives.

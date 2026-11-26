@@ -174,3 +174,9 @@ Defensive inventory path masking and JSON escaping are not a credential detector
 ## Disclaimer
 
 Argus is a software architecture analysis and decision-support tool. It does not certify or guarantee software safety, security, correctness, reliability, regulatory compliance, or AI alignment. Findings are derived from static analysis, observable source-code relationships, configurable rules, and heuristic indicators. Analysis may produce false positives, false negatives, incomplete results, or inaccurate architectural inferences. The absence of findings does not establish the absence of vulnerabilities, particularly where portions of the codebase have not been reviewed. Argus is intended to complement, not replace, professional security assessments, runtime analysis, comprehensive software testing, code review, and qualified human engineering judgment.
+
+
+Milestone 5 adds a [bounded contextual analysis subset](docs/milestone-5.md),
+[source-free assessment contracts](docs/data-contract.md) and explicit semantic
+coverage gaps. See the [laboratory comparison](docs/milestone-5-evaluation.md);
+this is not independent accuracy benchmark validation.

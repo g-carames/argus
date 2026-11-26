@@ -1,3 +1,28 @@
+# Milestone 5 additive contract revision: 1.3.0
+
+`Finding.assessment` is optional for compatibility. It contains initial_pattern,
+mitigation_state, supporting/contradictory evidence IDs, typed safeguards with
+applicability and reasons, call-path/unresolved relationship IDs, assumptions,
+remaining_risk, limitations and an optional evidence-backed severity_adjustment.
+Remediation and validation remain Finding.corrective_actions/acceptance_criteria.
+ScanResult validates assessment evidence/relationship references. No raw source,
+literals, AST/CST or semantic internal graphs are serialized.
+
+Five states: mitigation_established_within_analyzed_scope, partially_mitigated,
+safeguard_observed_applicability_unverified, no_applicable_safeguard_detected,
+undetermined. Established mitigation is limited to analyzed scope, never a safety
+assertion; unresolved/incomplete paths remain disclosed. Severity and confidence
+remain separate. Uncertain mitigation cannot lower severity or remove observations.
+
+Five independent capability members declare control flow, local data flow,
+function-operation summaries, collection bounds and source-to-sink tracking.
+`not_reviewed_portions_of_the_code.semantic_analysis_gaps` holds incomplete semantic
+diagnostics including budgets and unsupported controls even when no findings exist.
+Existing denominators and partial-review meanings remain unchanged. Internal
+language-agnostic Value/Site/FlowNode/SemanticFacts contracts are not report fields.
+See [Milestone 5](milestone-5.md) for methodology, examples, assumptions and tests.
+Older milestone text below is historical where superseded.
+
 > Milestone 4 uses the existing 1.2.0 typed fields without schema changes.
 > Findings now include security/credential/reliability/AI/cost pattern indicators,
 > additional categories and ResourceImpact. CALL/HTTP relationships and endpoint nodes

@@ -246,3 +246,16 @@ Every generated report, regardless of format, must include this exact disclaimer
 - Link detailed documentation from README.md. Summarize categories there without duplicating the complete catalog.
 - Each adapter declares every analysis capability independently. Parser availability alone is never language analysis support.
 - Record measured independent evaluation results without altering external fixtures or ground truth. Separate exact implemented rule scope from broader defect descriptions and disclose unadjudicated findings.
+
+
+## Permanent Contextual Investigation Requirement
+
+Before finalizing a risk conclusion, use implemented analytical capabilities to
+investigate both supporting and contradictory evidence, relevant safeguards and
+their applicability to the actual value, operation, path and caller. Preserve the
+initial observation. Naming or configuration presence alone never establishes
+effective mitigation. Distinguish observed facts, resolved bindings, inferred risk,
+unknown behavior and scope-limited mitigation. A constrained caller must not suppress
+other callers. Record assumptions, unresolved relationships, analysis budgets and
+incomplete work prominently; severity changes require specific evidence. Unsupported
+contextual capabilities must remain explicitly unavailable, never implicit safety.

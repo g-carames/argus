@@ -123,6 +123,7 @@ class JsonReportWriter:
         data["not_reviewed_portions_of_the_code"] = {
             "title": "Not Reviewed Portions of the Code",
             "portions": not_reviewed,
+            "semantic_analysis_gaps": to_data(tuple(d for d in result.diagnostics if d.code == 'semantic_analysis_incomplete')),
             "unsupported_languages_and_formats": [unsupported[key] for key in sorted(unsupported)],
             "inventory_gaps": to_data(result.coverage.inventory_gaps),
             "execution": to_data(result.execution),

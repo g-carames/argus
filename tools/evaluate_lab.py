@@ -75,7 +75,9 @@ def evaluate(root):
                 for cycle in result.graph.cycles:
                     if set(cycle.node_ids) & set(f.affected_ids):
                         related.update(module_paths[n] for n in cycle.node_ids)
-            findings.append({'rule_id':f.rule_id, 'paths':sorted(related), 'lines':[l.start_line for l in f.locations]})
+            findings.append({'rule_id':f.rule_id, 'paths':sorted(related), 'lines':[l.start_line for l in f.locations], 'severity':f.severity.value,
+                'mitigation_state':f.assessment.mitigation_state.value if f.assessment else None,
+                'safeguards':len(f.assessment.safeguards) if f.assessment else 0})
         comparisons = []
         for group, issues in truth['future_analysis_rules'].items():
             if not isinstance(issues, list):
@@ -87,7 +89,7 @@ def evaluate(root):
                 status='detected' if matching else 'missed' if rules else 'outside_supported_scope'
                 reason='Exact registered syntax and planted location match.' if matching else 'No rule for this issue scope.' if not rules else 'No matching finding at planted location.'
                 if issue['id'] in ('loop-model-calls','javascript-model-loop') and not matching:
-                    reason='Missed broader model-loop issue: mock/custom complete wrappers lack the imported provider SDK evidence required by the implemented detector.'
+                    reason='Ground-truth model-loop label retained as missed: Python local MockModel.complete has string-concatenation implementation rather than a provider operation; JavaScript injected receiver has no uniquely resolved implementation. Neither naming nor manifest labels establish SDK semantics.'
                 if issue['id']=='write-amplification':
                     status='partially_evaluated'
                     reason='Query-in-loop consequence evaluated; quotas, retention and full write-amplification semantics unsupported.'
@@ -109,8 +111,9 @@ def evaluate(root):
             'failed_files':sum(c.status.value == 'failed' for c in result.coverage.files),
             'unsupported_files':sum(c.status.value == 'unsupported' for c in result.coverage.files),
             'inventory_gaps':len(result.coverage.inventory_gaps),
+            'semantic_diagnostics':sum(d.code=='semantic_analysis_incomplete' for d in result.diagnostics),
             'negative_control':truth['future_analysis_rules']['negative_control']})
-    return {'disclaimer':DISCLAIMER, 'method':'Default thresholds; immutable manifest locations and explicit rule mapping. Broader model-loop wrapper misses are disclosed separately from exact SDK scope. Partial consequences do not establish full detection. Unmatched findings require manual review; no precision claim.', 'repositories':rows}
+    return {'disclaimer':DISCLAIMER, 'method':'Default thresholds; immutable manifest locations and explicit rule mapping. Mock/injected model-loop ground-truth misses are disclosed separately from evidence-backed SDK wrapper scope. Partial consequences do not establish full detection. Unmatched findings require manual review; no precision claim.', 'repositories':rows}
 
 
 if __name__ == '__main__':

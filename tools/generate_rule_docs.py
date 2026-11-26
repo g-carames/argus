@@ -17,6 +17,8 @@ def render(category):
                 f'- Required capabilities: {", ".join(r.capabilities)}.',
                 f'- Evaluated parameter: `{r.parameter}`; default threshold: `{r.default}`; strict greater-than.',
                 f'- Methodology: {r.methodology}',
+                f'- Contextual investigation: {r.contextual_analysis}',
+                f'- Contextual tests: `{r.contextual_tests}`.' if r.contextual_tests else '- Contextual tests: not applicable.',
                 f'- Default severity: {r.severity}; confidence criteria: {r.confidence}.',
                 f'- Why it matters: {r.rationale}',
                 f'- Positive example: {r.positive}.', f'- Negative example: {r.negative}.',

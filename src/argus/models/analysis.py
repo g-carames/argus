@@ -5,6 +5,7 @@ from enum import StrEnum
 
 from .base import Category, Confidence, Provenance, Record, Severity, Status, nonempty, require, unique
 from .source import SourceLocation
+from .semantic import Assessment
 
 
 class RelationshipKind(StrEnum):
@@ -155,6 +156,7 @@ class Finding(Record):
     remediation_evidence_ids: tuple[str, ...] = ()
     additional_categories: tuple[Category, ...] = ()
     resource_impact: ResourceImpact | None = None
+    assessment: Assessment | None = None
 
     def validate(self) -> None:
         for value in (self.id, self.rule_id, self.rule_version, self.title,

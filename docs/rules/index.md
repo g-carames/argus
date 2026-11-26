@@ -62,3 +62,9 @@ missing coverage. ARCH-002/003 test directional degree >10; ARCH-005 tests total
 or the same size observation as MAINT-002. These are correlated views of shared
 observations, not distinct independently proven defects; never add severities or
 interpret finding count as a safety score. No thresholds were tuned to lab fixtures.
+
+
+Seven existing rules have Milestone 5 contextual refinements, documented in their
+generated catalog entries and [contextual methodology](../milestone-5.md). Other
+pattern rules retain their observation with undetermined contextual applicability;
+structural measurements retain their existing scope. There are still 24 rules.

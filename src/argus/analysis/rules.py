@@ -1,5 +1,5 @@
 """Central rule metadata and deterministic evaluation; no source-derived instructions."""
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from ..models.analysis import Finding
 from ..models.base import Category, Confidence, Provenance, Severity
 from ..models.source import Evidence
@@ -28,6 +28,8 @@ class Rule:
     status: str = 'implemented'
     tests: str = 'tests/test_analysis_rules.py'
     languages: tuple = PRIMARY
+    contextual_tests: str | None = None
+    contextual_analysis: str = 'No rule-specific semantic refinement; structural measurement or original pattern retained. Semantic applicability is undetermined where unavailable.'
     limitations: str = 'Thresholds are configurable heuristics, not universal architecture standards. Static incomplete graphs and generated code can cause false positives or omissions.'
 
 REGISTRY = (
@@ -102,7 +104,7 @@ REGISTRY += tuple(Rule('ARGUS-'+key, name, cat, 'occurrence_'+key.lower().replac
     evaluator='pattern', confidence='medium: exact named syntax observed; runtime binding, exploitation and omitted safeguards unverified', secondary_categories=secondary, languages=PRIMARY if key in ('SEC-001','SEC-002','SEC-004','SEC-005','SEC-006','SEC-007','COST-001','AI-001','AI-002') else ('python',),
     rationale='Observed static patterns may expose data, execution boundaries or resources. Cost consequences are potential, not measured expense.',
     tests='tests/test_risk_rules.py',
-    limitations='Syntactic matching only; aliases supported for Python imports and JS child_process named imports. Shadowing, indirect calls, wrappers, dataflow, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere.')
+    limitations='Initial syntactic matching; contextual supplement applies only where explicitly documented. Aliases supported for Python imports and JS child_process named imports. General shadowing, dynamic indirect calls, arbitrary wrappers, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere.')
     for key,name,cat,secondary,method,positive,negative in RISK_SPECS)
 REGISTRY += (Rule('ARGUS-CRED-001','Potential embedded credential',Category.CREDENTIALS,'credential_occurrences',0,
     'Bounded UTF-8 text: recognizable provider tokens, PEM private-key headers, or quoted secret assignments (including prefixed names) of at least 8 characters, or unquoted .env secret assignments of at least 8 non-whitespace characters. One finding per matching line; no raw evidence or value-derived ID. Token regex families: sk-(proj-|ant-)? suffix length >=20, AIza suffix >=30, AKIA/ASIA +16, gh[pousr]_ suffix >=20, github_pat_ suffix >=20, xox[baprs]- suffix >=20. PEM private-key header variants: RSA, EC, OPENSSH, DSA, ENCRYPTED or unqualified. Assignment names end in password/passwd/api_key/apikey/secret/secret_key/access_token/auth_token/token; optional underscore prefix. Placeholders beginning ${, <, your_, your-space, example, placeholder, changeme, test_, test-, dummy, ***, [redacted] are suppressed for assignments; provider-token matches are retained.',
@@ -112,6 +114,20 @@ REGISTRY += (Rule('ARGUS-CRED-001','Potential embedded credential',Category.CRED
     evaluator='pattern', confidence='medium: unvalidated textual candidate; no authentication or exposure verification', languages=('all eligible UTF-8 text',), tests='tests/test_risk_rules.py',
     rationale='Embedded secrets may permit unauthorized use. Values are never reported.',
     limitations='Heuristic candidates, not validated credentials. Templates can be false positives. Discovery exclusions apply; ignored local configuration, tracked-file override, history, persistence, reuse and remediation transitions are unavailable.'),)
+# Contextual methodology supplements the original observation; no new rules.
+CONTEXT_METHODS = {
+    'ARGUS-AI-001': 'Python positive integer token limits propagated through simple local assignments, arguments and defaults. Unknown/nonpositive supplied limits produce retained candidates with unverified applicability. Nested config dictionaries are not verified. JS remains syntactic.',
+    'ARGUS-AI-002': 'Python bounded literal/range/slice iteration domains, branch joins and local argument/return flow; nested domains multiply. Mutation/unknown calls invalidate bounds. All primary languages propagate observed operation kinds through uniquely resolved call relationships, depth 4; arbitrary names/mock SDKs never establish provider semantics. Retain bounded observations and original severity; bounds alone do not establish acceptable impact.',
+    'ARGUS-COST-001': 'Same bounded iteration and operation-summary methodology as AI-002 for execute/executemany/query candidates. No receiver/database typing or database result-limit enforcement. Bounded observations remain findings at their original severity; bounds do not establish acceptable cost.',
+    'ARGUS-REL-003': 'Python positive integer timeout values through local assignments, function parameters and defaults. Configured but unknown/nonpositive timeouts produce unverified candidates. **kwargs remains unknown under inherited syntax scope; requests sessions, client constructors and external infrastructure unavailable.',
+    'ARGUS-SEC-004': 'Python dynamically constructed SQL flags propagate through simple assignments, arguments and returns, including possible branch joins. Parameterized literals produce no syntax candidate. Unknown sanitizer calls do not establish safety; no SQL dialect, driver or escaping effectiveness verification.',
+    'ARGUS-SEC-001': 'Python input() source influence propagates through simple local assignments, arguments, returns and unknown function calls to direct execution sinks. Evidence does not prove exploitability or sanitizer effectiveness; original execution observation always retained.',
+    'ARGUS-CRED-001': 'Additionally recognize generic JS-family browser key literal assignments (>=16 characters) only with a credential-like value marker secret/api-key/access-token/browser-key, fetch call and JSON.stringify use of key. Ordinary key values and naming/comments alone do not qualify. No raw value retained; potential exposure only.',
+}
+REGISTRY = tuple(replace(r, version='1.1.0', contextual_analysis=CONTEXT_METHODS[r.id],
+    contextual_tests='tests/test_semantic_context.py',
+    limitations=r.limitations+' Contextual refinement is bounded and partial; see docs/milestone-5.md for exact supported scopes and budgets.')
+    if r.id in CONTEXT_METHODS else r for r in REGISTRY)
 BY_ID = {r.id: r for r in REGISTRY}
 
 

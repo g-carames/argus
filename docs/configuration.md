@@ -81,3 +81,14 @@ one-second parser timeout and disabled core dumps. Retained entities are capped 
 200000-node and 256-depth traversal budgets remain. HTTP candidate matching is capped
 at 1000000 comparisons with unresolved declarations and explicit failure diagnostics
 when exhausted. No scan-wide hard memory/time sandbox is claimed.
+
+
+## Milestone 5 contextual subset
+
+See [Milestone 5](milestone-5.md) for exact methodology, safeguards, assumptions,
+fixed resource budgets, examples, tests and deferred scope. Python adds bounded
+structured flow and local function contexts; JavaScript/TypeScript/JSX/TSX add
+operation summaries through existing resolved calls. No general framework security,
+database-limit enforcement or cross-file value flow. Findings retain observations;
+uncertain safeguards cannot suppress them. Budget/unsupported-control diagnostics
+appear in **Not Reviewed Portions of the Code**. No semantic completeness claim.

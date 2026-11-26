@@ -9,7 +9,7 @@ from .credentials import CredentialExposure
 from .execution import ExecutionMetadata, ResourceBudget, RootScope
 from .source import Evidence, Module, SourceFile, SourceLocation, Symbol
 
-SCHEMA_VERSION = "1.2.0"
+SCHEMA_VERSION = "1.3.0"
 DISCLAIMER = (
     "Argus is a software architecture analysis and decision-support tool. It does not certify or "
     "guarantee software safety, security, correctness, reliability, regulatory compliance, or AI "
@@ -182,6 +182,13 @@ class ScanResult(Record):
                     and set(finding.affected_ids) <= entity_ids, "dangling finding reference")
             require(set(finding.relationship_ids) <= {edge.id for edge in self.graph.relationships},
                     "dangling finding relationship")
+            if finding.assessment is not None:
+                assessment=finding.assessment
+                refs=set(assessment.supporting_evidence_ids+assessment.contradictory_evidence_ids)
+                refs.update(e for guard in assessment.safeguards for e in guard.evidence_ids)
+                require(refs <= evidence_ids, "dangling assessment evidence")
+                require(set(assessment.call_path_relationship_ids+assessment.unresolved_relationship_ids)
+                        <= {edge.id for edge in self.graph.relationships}, "dangling assessment relationship")
         for credential in self.credentials or ():
             refs = set(credential.evidence_ids) | set(credential.resolution_evidence_ids)
             refs.update(ref for event in credential.events for ref in event.evidence_ids)

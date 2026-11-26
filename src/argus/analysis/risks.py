@@ -17,11 +17,16 @@ def credentials(content, path=""):
     if '\x00' in text:
         return []
     hits = []
+    # Generic browser keys require value semantics AND request-use context.
+    # No inference from a generic variable name or a source comment alone.
+    browser_context = path.endswith(('.js','.jsx','.ts','.tsx')) and bool(re.search(r'\bfetch\s*\(', text)) and bool(re.search(r'JSON\.stringify\s*\([^;]*\bkey\b',text))
+    generic = re.compile(r'''\b(?:const|let|var)\s+key\s*=\s*["']([^"'\r\n]{16,})["']''')
     for line, value in enumerate(text.splitlines(), 1):
         assignments = ASSIGNMENT.finditer(value)
         env = path.rsplit('/',1)[-1].startswith('.env') and re.fullmatch(r'\s*[A-Za-z_][A-Za-z0-9_]*(?:KEY|SECRET|TOKEN|PASSWORD)\s*=\s*([^\s#\"\']{8,})\s*', value)
         env_secret = bool(env) and not PLACEHOLDER.search(env[1])
-        if (env_secret or TOKEN.search(value) or re.search(r'-----BEGIN (?:RSA |EC |OPENSSH |DSA |ENCRYPTED )?PRIVATE KEY-----', value)
+        browser_secret = browser_context and any(not PLACEHOLDER.search(m[1]) and re.search(r'(?i)(?:secret|api[-_]?key|access[-_]?token|browser[-_]?key)',m[1]) for m in generic.finditer(value))
+        if (browser_secret or env_secret or TOKEN.search(value) or re.search(r'-----BEGIN (?:RSA |EC |OPENSSH |DSA |ENCRYPTED )?PRIVATE KEY-----', value)
             or any(not PLACEHOLDER.search(m[1]) for m in assignments)):
             hits.append(('ARGUS-CRED-001', line))
     return hits

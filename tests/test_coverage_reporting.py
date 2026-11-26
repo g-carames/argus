@@ -148,4 +148,4 @@ def test_models_and_serialization_have_no_runtime_io(result, monkeypatch):
     monkeypatch.setattr(builtins, "open", forbidden)
     monkeypatch.setattr(socket, "socket", forbidden)
     monkeypatch.setattr(subprocess, "Popen", forbidden)
-    assert json.loads(JsonReportWriter().render(result))["schema_version"] == "1.2.0"
+    assert json.loads(JsonReportWriter().render(result))["schema_version"] == "1.3.0"

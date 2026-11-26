@@ -47,7 +47,7 @@ belongs to the imported SDK. Supported Python import roots are openai, anthropic
 google, langchain, langgraph; JS exact module names are openai, @anthropic-ai/sdk,
 @google/generative-ai, @google/genai, langchain, @langchain/openai,
 @langchain/langgraph. Exact suffixes and keyword checks are in the generated catalog.
-Custom and mock model wrappers remain unsupported, including laboratory complete calls.
+Recognizable wrappers now propagate operation kinds through unique static calls; arbitrary/mock complete methods remain unsupported as provider evidence.
 No AI alignment, agent safety or prompt-injection resistance is certified.
 
 ## Dependency and call extraction
@@ -87,3 +87,17 @@ core dumps disabled. Abnormal exits/timeouts become file failures; source/except
 text is withheld. This contains failures rather than claiming the upstream native
 bug is fixed. No hard memory cap; Python/JSON/TOML/SQL are not isolated. POSIX CLI on
 macOS arm64 is measured; other platforms and multithreaded spawn are not validated.
+
+
+## Milestone 5 independent semantic capabilities
+
+| Language | Control flow | Local data flow | Operation summaries | Collection bounds | Source-to-sink |
+| --- | --- | --- | --- | --- | --- |
+| Python | partial structured CFG | bounded local functions/arguments/returns | local + resolved CALL graph | literal/range/slice, conservative mutation invalidation | input to direct execution only |
+| JavaScript, TypeScript, JSX, TSX | unavailable | unavailable | bounded resolved CALL graph | unavailable | unavailable |
+| All other formats | unavailable | unavailable | unavailable | unavailable | unavailable |
+
+Each column has an independent Capability declaration. Availability means partial
+implemented scope, never complete language support. Framework safeguards remain
+unavailable. Exact assumptions, budgets, positive/negative examples and associated
+tests are in [Milestone 5](milestone-5.md).

@@ -6,17 +6,19 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 
 ## ARGUS-CRED-001 — Potential embedded credential
 
-- Version: 1.0.0; implementation status: implemented.
+- Version: 1.1.0; implementation status: implemented.
 - Primary category: credentials; secondary categories: none.
 - Languages: all eligible UTF-8 text.
 - Required capabilities: credential_detection.
 - Evaluated parameter: `credential_occurrences`; default threshold: `0`; strict greater-than.
 - Methodology: Bounded UTF-8 text: recognizable provider tokens, PEM private-key headers, or quoted secret assignments (including prefixed names) of at least 8 characters, or unquoted .env secret assignments of at least 8 non-whitespace characters. One finding per matching line; no raw evidence or value-derived ID. Token regex families: sk-(proj-|ant-)? suffix length >=20, AIza suffix >=30, AKIA/ASIA +16, gh[pousr]_ suffix >=20, github_pat_ suffix >=20, xox[baprs]- suffix >=20. PEM private-key header variants: RSA, EC, OPENSSH, DSA, ENCRYPTED or unqualified. Assignment names end in password/passwd/api_key/apikey/secret/secret_key/access_token/auth_token/token; optional underscore prefix. Placeholders beginning ${, <, your_, your-space, example, placeholder, changeme, test_, test-, dummy, ***, [redacted] are suppressed for assignments; provider-token matches are retained.
+- Contextual investigation: Additionally recognize generic JS-family browser key literal assignments (>=16 characters) only with a credential-like value marker secret/api-key/access-token/browser-key, fetch call and JSON.stringify use of key. Ordinary key values and naming/comments alone do not qualify. No raw value retained; potential exposure only.
+- Contextual tests: `tests/test_semantic_context.py`.
 - Default severity: medium; confidence criteria: medium: unvalidated textual candidate; no authentication or exposure verification.
 - Why it matters: Embedded secrets may permit unauthorized use. Values are never reported.
 - Positive example: api_key = "synthetic-value".
 - Negative example: api_key = os.environ["API_KEY"].
 - Remediation: Remove exposed material and investigate rotation and revocation separately with the provider using a trusted manual process.
 - Validation: Confirm source removal and independently establish appropriate revocation; removal alone is insufficient.
-- Limitations and false positives: Heuristic candidates, not validated credentials. Templates can be false positives. Discovery exclusions apply; ignored local configuration, tracked-file override, history, persistence, reuse and remediation transitions are unavailable.
+- Limitations and false positives: Heuristic candidates, not validated credentials. Templates can be false positives. Discovery exclusions apply; ignored local configuration, tracked-file override, history, persistence, reuse and remediation transitions are unavailable. Contextual refinement is bounded and partial; see docs/milestone-5.md for exact supported scopes and budgets.
 - Associated automated tests: `tests/test_risk_rules.py` (parameterized positive, negative and disabled cases); `tests/test_analysis_graphs.py` and `tests/test_analysis_parsing.py` cover measurement primitives.

@@ -12,6 +12,8 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 - Required capabilities: structural_analysis.
 - Evaluated parameter: `function_length`; default threshold: `50`; strict greater-than.
 - Methodology: Inclusive physical start/end span of each function or method, including comments and nested definitions; strict greater-than.
+- Contextual investigation: No rule-specific semantic refinement; structural measurement or original pattern retained. Semantic applicability is undetermined where unavailable.
+- Contextual tests: not applicable.
 - Default severity: medium; confidence criteria: medium: exact structural measurement with heuristic architectural interpretation.
 - Why it matters: Concentrated responsibilities, branching or dependency cycles may increase maintenance and change coordination risk.
 - Positive example: Function spans 51 physical lines.
@@ -29,6 +31,8 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 - Required capabilities: structural_analysis.
 - Evaluated parameter: `module_length`; default threshold: `500`; strict greater-than.
 - Methodology: Physical file lines including comments and blank lines; strict greater-than.
+- Contextual investigation: No rule-specific semantic refinement; structural measurement or original pattern retained. Semantic applicability is undetermined where unavailable.
+- Contextual tests: not applicable.
 - Default severity: medium; confidence criteria: medium: exact structural measurement with heuristic architectural interpretation.
 - Why it matters: Concentrated responsibilities, branching or dependency cycles may increase maintenance and change coordination risk.
 - Positive example: Module has 501 physical lines.
@@ -46,6 +50,8 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 - Required capabilities: complexity_analysis.
 - Evaluated parameter: `nesting_depth`; default threshold: `4`; strict greater-than.
 - Methodology: Maximum nested control structures per function; nested function/class bodies excluded; strict greater-than.
+- Contextual investigation: No rule-specific semantic refinement; structural measurement or original pattern retained. Semantic applicability is undetermined where unavailable.
+- Contextual tests: not applicable.
 - Default severity: medium; confidence criteria: medium: exact structural measurement with heuristic architectural interpretation.
 - Why it matters: Concentrated responsibilities, branching or dependency cycles may increase maintenance and change coordination risk.
 - Positive example: Five nested conditional/loop/try structures.
@@ -63,6 +69,8 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 - Required capabilities: complexity_analysis.
 - Evaluated parameter: `cyclomatic_complexity`; default threshold: `10`; strict greater-than.
 - Methodology: One plus decisions: Python if/if-expression/loops/handlers/comprehensions/match cases and boolean alternatives; JS conditions/loops/catches/cases/ternaries/short-circuit operators. Nested scopes excluded; strict greater-than.
+- Contextual investigation: No rule-specific semantic refinement; structural measurement or original pattern retained. Semantic applicability is undetermined where unavailable.
+- Contextual tests: not applicable.
 - Default severity: medium; confidence criteria: medium: exact structural measurement with heuristic architectural interpretation.
 - Why it matters: Concentrated responsibilities, branching or dependency cycles may increase maintenance and change coordination risk.
 - Positive example: Function indicator exceeds 10.

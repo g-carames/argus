@@ -24,6 +24,7 @@ class Facts:
     declarations: dict = field(default_factory=dict)
     limitations: tuple = ()
     links: object = None
+    semantic: object = None
 
 
 def extract(file, parsed):
@@ -209,4 +210,6 @@ def extract(file, parsed):
         facts.limitations = ('Dockerfile instruction recognition only; arguments, heredocs, stages and embedded shell are not semantically validated.',)
     from .relationships import collect
     facts.links = collect(file, parsed, facts)
+    from .semantic import collect as collect_semantic
+    facts.semantic = collect_semantic(file, parsed, facts)
     return facts

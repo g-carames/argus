@@ -12,6 +12,8 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 - Required capabilities: dependency_resolution.
 - Evaluated parameter: `cyclic_component_size`; default threshold: `0`; strict greater-than.
 - Methodology: NetworkX strongly connected components; emit once per cyclic component, including self imports.
+- Contextual investigation: No rule-specific semantic refinement; structural measurement or original pattern retained. Semantic applicability is undetermined where unavailable.
+- Contextual tests: not applicable.
 - Default severity: medium; confidence criteria: medium: exact structural measurement with heuristic architectural interpretation.
 - Why it matters: Concentrated responsibilities, branching or dependency cycles may increase maintenance and change coordination risk.
 - Positive example: a imports b; b imports a.
@@ -29,6 +31,8 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 - Required capabilities: dependency_resolution.
 - Evaluated parameter: `incoming_coupling`; default threshold: `10`; strict greater-than.
 - Methodology: Count distinct incoming resolved local module neighbors; strict greater-than threshold.
+- Contextual investigation: No rule-specific semantic refinement; structural measurement or original pattern retained. Semantic applicability is undetermined where unavailable.
+- Contextual tests: not applicable.
 - Default severity: medium; confidence criteria: medium: exact structural measurement with heuristic architectural interpretation.
 - Why it matters: Concentrated responsibilities, branching or dependency cycles may increase maintenance and change coordination risk.
 - Positive example: 11 distinct modules import a shared module.
@@ -46,6 +50,8 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 - Required capabilities: dependency_resolution.
 - Evaluated parameter: `outgoing_coupling`; default threshold: `10`; strict greater-than.
 - Methodology: Count distinct outgoing resolved local module neighbors; strict greater-than threshold.
+- Contextual investigation: No rule-specific semantic refinement; structural measurement or original pattern retained. Semantic applicability is undetermined where unavailable.
+- Contextual tests: not applicable.
 - Default severity: medium; confidence criteria: medium: exact structural measurement with heuristic architectural interpretation.
 - Why it matters: Concentrated responsibilities, branching or dependency cycles may increase maintenance and change coordination risk.
 - Positive example: A module imports 11 distinct local modules.
@@ -63,6 +69,8 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 - Required capabilities: dependency_resolution.
 - Evaluated parameter: `degree_centrality`; default threshold: `1`; strict greater-than.
 - Methodology: Directed unweighted import graph with n extracted primary modules (including isolated nodes). For n>1, degree_centrality=(in_degree+out_degree)/(n-1); singleton 0. Each self-loop contributes one to each directional degree. Strict greater-than; default 1 means total degree > n-1, not a normalized safety/importance score. Shares degree observations with ARCH-002/003/005; overlapping findings are correlated indicators, not independent defects.
+- Contextual investigation: No rule-specific semantic refinement; structural measurement or original pattern retained. Semantic applicability is undetermined where unavailable.
+- Contextual tests: not applicable.
 - Default severity: medium; confidence criteria: medium: exact structural measurement with heuristic architectural interpretation.
 - Why it matters: Concentrated responsibilities, branching or dependency cycles may increase maintenance and change coordination risk.
 - Positive example: A bidirectional hub has centrality greater than 1.
@@ -80,6 +88,8 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 - Required capabilities: structural_analysis, dependency_resolution.
 - Evaluated parameter: `total_coupling`; default threshold: `20`; strict greater-than.
 - Methodology: total_coupling=in_degree+out_degree (reciprocal directions count separately, each self-loop contributes two). Strict total_coupling > threshold OR physical module_length > configured module_length (default 500). Overlaps ARCH-002/003/004 degree observations and MAINT-002 size observation; no independent defect or cumulative severity is implied.
+- Contextual investigation: No rule-specific semantic refinement; structural measurement or original pattern retained. Semantic applicability is undetermined where unavailable.
+- Contextual tests: not applicable.
 - Default severity: medium; confidence criteria: medium: exact structural measurement with heuristic architectural interpretation.
 - Why it matters: Concentrated responsibilities, branching or dependency cycles may increase maintenance and change coordination risk.
 - Positive example: A module has total coupling 21 or more, or exceeds configured module length.

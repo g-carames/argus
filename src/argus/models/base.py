@@ -108,6 +108,11 @@ class Capability(StrEnum):
     FRAMEWORK = "framework_analysis"
     AI = "ai_specific_analysis"
     CONFIGURATION = "configuration_analysis"
+    CONTROL_FLOW = "control_flow_analysis"
+    DATA_FLOW = "local_data_flow_analysis"
+    SUMMARIES = "function_operation_summaries"
+    BOUNDS = "collection_bound_analysis"
+    TAINT = "source_to_sink_tracking"
 
 
 class Status(StrEnum):
