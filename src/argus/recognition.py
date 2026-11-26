@@ -9,7 +9,7 @@ from .models.source import FileKind
 EXTENSIONS = {
     'python': 'py pyi pyw', 'javascript': 'js mjs cjs', 'typescript': 'ts mts cts',
     'jsx': 'jsx', 'tsx': 'tsx', 'sql': 'sql', 'html': 'html htm xhtml',
-    'css': 'css', 'scss': 'scss', 'json': 'json jsonl', 'yaml': 'yaml yml',
+    'css': 'css', 'scss': 'scss', 'json': 'json jsonl jsonc', 'yaml': 'yaml yml',
     'toml': 'toml', 'bash': 'bash', 'shell': 'sh zsh ksh', 'powershell': 'ps1 psm1 psd1',
     'go': 'go', 'rust': 'rs', 'java': 'java', 'csharp': 'cs', 'c': 'c',
     'cpp': 'cpp cc cxx c++ C hpp hxx hh', 'swift': 'swift', 'kotlin': 'kt kts',

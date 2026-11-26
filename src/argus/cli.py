@@ -85,7 +85,7 @@ def main(argv=None):
                 raise CliError('OUTPUT_WRITE_FAILED') from None
         if args.verbose:
             print(f'argus: inventory {result.inventory.status.value}; {len(result.files)} files; '
-                  f'{len(result.coverage.inventory_gaps)} gaps; {len(result.findings)} structural findings; analysis partial', file=sys.stderr)
+                  f'{len(result.coverage.inventory_gaps)} gaps; {len(result.findings)} findings; analysis partial', file=sys.stderr)
         if result.execution.cancelled:
             return 130
         if result.diagnostics or any(g.status.value == 'failed' for g in result.coverage.inventory_gaps):

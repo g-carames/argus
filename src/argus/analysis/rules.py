@@ -20,6 +20,7 @@ class Rule:
     validation: str
     capabilities: tuple[str, ...]
     rationale: str = 'Concentrated responsibilities, branching or dependency cycles may increase maintenance and change coordination risk.'
+    evaluator: str = 'structural'
     version: str = '1.0.0'
     secondary_categories: tuple = ()
     severity: str = 'medium'
@@ -66,17 +67,51 @@ REGISTRY = (
          'Review branching responsibilities and simplify independently testable paths.',
          'Recompute the indicator and review branch-focused tests separately.', ('complexity_analysis',)),
     Rule('ARGUS-ARCH-004', 'Concentration of architectural dependencies', Category.ARCHITECTURE, 'degree_centrality', 1,
-         'Directed degree centrality > configurable threshold; sum of degrees/(n-1), singleton 0.',
+         'Directed unweighted import graph with n extracted primary modules (including isolated nodes). For n>1, degree_centrality=(in_degree+out_degree)/(n-1); singleton 0. Each self-loop contributes one to each directional degree. Strict greater-than; default 1 means total degree > n-1, not a normalized safety/importance score. Shares degree observations with ARCH-002/003/005; overlapping findings are correlated indicators, not independent defects.',
          'A bidirectional hub has centrality greater than 1', 'Disconnected modules have centrality 0',
          'Review hub stability, layering and dependency direction.',
          'Review graph coverage and confirm a justified hub or reduced concentration.', ('dependency_resolution',)),
     Rule('ARGUS-ARCH-005', 'Potentially oversized or overly coupled module', Category.ARCHITECTURE, 'total_coupling', 20,
-         'Sum of incoming and outgoing local degree > threshold; alternative oversized condition uses module_length threshold.',
+         'total_coupling=in_degree+out_degree (reciprocal directions count separately, each self-loop contributes two). Strict total_coupling > threshold OR physical module_length > configured module_length (default 500). Overlaps ARCH-002/003/004 degree observations and MAINT-002 size observation; no independent defect or cumulative severity is implied.',
          'A module has total coupling 21 or more, or exceeds configured module length',
          'A short module has total coupling at most 20',
          'Review module cohesion and split independent responsibilities when appropriate.',
          'Review coupling and module size against policy with equivalent scan coverage.', ('structural_analysis', 'dependency_resolution')),
 )
+# Pattern rules use a configurable occurrence threshold (default zero), per site.
+RISK_SPECS = (
+ ('SEC-001','Dynamic code execution',Category.SECURITY,(), 'Direct eval/exec calls (Python) or eval/Function calls (JS family).', 'eval(user_input)', 'literal parsing without execution'),
+ ('SEC-002','Shell execution boundary',Category.SECURITY,(), 'Python os.system/os.popen or subprocess calls with literal shell=True; JS child_process exec/execSync imported binding.', 'subprocess.run(command, shell=True)', 'subprocess.run([program, argument])'),
+ ('SEC-003','Unsafe deserialization',Category.SECURITY,(), 'Python pickle.load/loads, dill.load/loads, yaml.unsafe_load and yaml.load without Loader keyword resolving to yaml.SafeLoader or yaml.CSafeLoader. Positional loaders and expanded keyword options are not resolved and can be flagged.', 'pickle.loads(data)', 'json.loads(data)'),
+ ('SEC-004','Dynamically constructed SQL',Category.SECURITY,(), 'execute/executemany/query first argument is a Python f-string, addition or percent expression, or JS template interpolation/addition.', 'cursor.execute(f"SELECT {value}")', 'cursor.execute("SELECT ?", (value,))'),
+ ('SEC-005','Legacy cryptographic digest',Category.SECURITY,(), 'Python hashlib.md5/sha1 or JS crypto.createHash with literal md5/sha1.', 'hashlib.md5(data)', 'hashlib.sha256(data)'),
+ ('SEC-006','Explicitly disabled TLS verification',Category.SECURITY,(), 'Python requests HTTP verb calls with literal verify=False; JS object pair rejectUnauthorized:false.', 'requests.get(url, verify=False)', 'requests.get(url, verify=True)'),
+ ('SEC-007','Credentialed permissive CORS',Category.SECURITY,(), 'Python FastAPI/Starlette CORSMiddleware passed to add_middleware with allow_origins containing literal * and allow_credentials=True; JS imported cors call with origin true or * and credentials true.', 'app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True)', 'app.add_middleware(CORSMiddleware, allow_origins=["https://trusted.invalid"], allow_credentials=True)'),
+ ('REL-001','Broad exception handler',Category.RELIABILITY,(), 'Python bare except or handler naming Exception/BaseException, including tuples.', 'except Exception: recover()', 'except ValueError: recover()'),
+ ('REL-002','Silently swallowed exception',Category.RELIABILITY,(), 'Python handler body consists exclusively of pass or constant expression statements; supersedes broad-handler finding at the same handler.', 'except ValueError: pass', 'except ValueError: raise'),
+ ('REL-003','Missing explicit request timeout',Category.RELIABILITY,(), 'Python requests.get/post/put/delete/patch/head/options/request calls without timeout keyword; **kwargs makes timeout unknown and suppresses finding.', 'requests.get(url)', 'requests.get(url, timeout=5)'),
+ ('REL-004','Blocking call in async function',Category.RELIABILITY,('performance_scalability',), 'Python time.sleep or requests HTTP call lexically inside async function; nested synchronous functions excluded.', 'async def f(): time.sleep(1)', 'async def f(): await asyncio.sleep(1)'),
+ ('COST-001','Database call inside loop',Category.COST,('performance_scalability',), 'execute/executemany/query call lexically within for/while (Python includes async for); nested function scopes reset loop context.', 'for row in rows: cursor.execute(query, row)', 'cursor.executemany(query, rows)'),
+ ('AI-001','Model call without explicit output limit',Category.AI,('cost_efficiency',), 'Provider import evidence: Python roots openai, anthropic, google, langchain, langgraph; JS exact modules openai, @anthropic-ai/sdk, @google/generative-ai, @google/genai, langchain, @langchain/openai, @langchain/langgraph. Call suffixes .chat.completions.create, .completions.create, .messages.create, .generate_content, .generateContent. No explicit max_tokens, max_completion_tokens, max_output_tokens, generationConfig or config keyword/object key. Python **kwargs and JS spread/non-object arguments suppress unknown configuration. Presence of a config key suppresses detection without validating its contents. Object/client type is not resolved.', 'client.chat.completions.create(model="m", messages=[])', 'client.chat.completions.create(max_tokens=100)'),
+ ('AI-002','Model or embedding call inside loop',Category.AI,('cost_efficiency',), 'Same provider-import and model-call suffix evidence as AI-001, plus embedding suffixes .embeddings.create, .embed_content, .embedContent. Call lexically within Python for/async-for/while or JS for/for-in/while/do; function boundaries reset loop context. Import evidence does not prove receiver SDK type. No inference from a generic complete/invoke function name.', 'for item in items: client.embeddings.create(input=item)', 'client.embeddings.create(input=items)'),
+)
+REGISTRY += tuple(Rule('ARGUS-'+key, name, cat, 'occurrence_'+key.lower().replace('-', '_'), 0,
+    method, positive, negative, 'Review the observed boundary; use safe APIs, explicit validated limits and appropriate batching or error handling.',
+    'Re-scan the same scope and verify the risky pattern is removed or document a reviewed exception.',
+    ('security_rules' if key.startswith('SEC') else 'ai_specific_analysis' if key.startswith('AI') else 'structural_analysis',),
+    evaluator='pattern', confidence='medium: exact named syntax observed; runtime binding, exploitation and omitted safeguards unverified', secondary_categories=secondary, languages=PRIMARY if key in ('SEC-001','SEC-002','SEC-004','SEC-005','SEC-006','SEC-007','COST-001','AI-001','AI-002') else ('python',),
+    rationale='Observed static patterns may expose data, execution boundaries or resources. Cost consequences are potential, not measured expense.',
+    tests='tests/test_risk_rules.py',
+    limitations='Syntactic matching only; aliases supported for Python imports and JS child_process named imports. Shadowing, indirect calls, wrappers, dataflow, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere.')
+    for key,name,cat,secondary,method,positive,negative in RISK_SPECS)
+REGISTRY += (Rule('ARGUS-CRED-001','Potential embedded credential',Category.CREDENTIALS,'credential_occurrences',0,
+    'Bounded UTF-8 text: recognizable provider tokens, PEM private-key headers, or quoted secret assignments (including prefixed names) of at least 8 characters, or unquoted .env secret assignments of at least 8 non-whitespace characters. One finding per matching line; no raw evidence or value-derived ID. Token regex families: sk-(proj-|ant-)? suffix length >=20, AIza suffix >=30, AKIA/ASIA +16, gh[pousr]_ suffix >=20, github_pat_ suffix >=20, xox[baprs]- suffix >=20. PEM private-key header variants: RSA, EC, OPENSSH, DSA, ENCRYPTED or unqualified. Assignment names end in password/passwd/api_key/apikey/secret/secret_key/access_token/auth_token/token; optional underscore prefix. Placeholders beginning ${, <, your_, your-space, example, placeholder, changeme, test_, test-, dummy, ***, [redacted] are suppressed for assignments; provider-token matches are retained.',
+    'api_key = "synthetic-value"', 'api_key = os.environ["API_KEY"]',
+    'Remove exposed material and investigate rotation and revocation separately with the provider using a trusted manual process.',
+    'Confirm source removal and independently establish appropriate revocation; removal alone is insufficient.', ('credential_detection',),
+    evaluator='pattern', confidence='medium: unvalidated textual candidate; no authentication or exposure verification', languages=('all eligible UTF-8 text',), tests='tests/test_risk_rules.py',
+    rationale='Embedded secrets may permit unauthorized use. Values are never reported.',
+    limitations='Heuristic candidates, not validated credentials. Templates can be false positives. Discovery exclusions apply; ignored local configuration, tracked-file override, history, persistence, reuse and remediation transitions are unavailable.'),)
 BY_ID = {r.id: r for r in REGISTRY}
 
 

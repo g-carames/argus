@@ -107,7 +107,7 @@ def test_adapter_declarations():
     for language in SUPPORTED:
         adapter = descriptor(language)
         assert {c.capability for c in adapter.capabilities} == set(Capability)
-        assert not next(c for c in adapter.capabilities if c.capability == Capability.SECURITY).available
+        assert next(c for c in adapter.capabilities if c.capability == Capability.SECURITY).available == (language in ('python','javascript','typescript','jsx','tsx'))
 
 
 def test_extraction_budget_disclosed(tmp_path,monkeypatch):

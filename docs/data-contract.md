@@ -1,3 +1,11 @@
+> Milestone 4 uses the existing 1.2.0 typed fields without schema changes.
+> Findings now include security/credential/reliability/AI/cost pattern indicators,
+> additional categories and ResourceImpact. CALL/HTTP relationships and endpoint nodes
+> retain observed declaration evidence and inferred binding/matching provenance.
+> Unknown/ambiguous targets have no invented IDs. Credential candidate findings do not
+> populate the lifecycle `credentials` collection (still null); history and remediation
+> storage are unavailable. See [current scope](milestone-4.md). Older text below is historical.
+
 > Milestone 3 update: parsing/extraction, conservative resolution, NetworkX graph
 > analysis and structural rules are now implemented in `src/argus/analysis/`.
 > See [Milestone 3](milestone-3.md), [language capabilities](language-support.md),

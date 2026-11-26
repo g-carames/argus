@@ -1,6 +1,6 @@
 import pytest
 from argus.scanner import scan
-from argus.models.analysis import Resolution
+from argus.models.analysis import Resolution, RelationshipKind
 
 
 def fixture(tmp_path, sources):
@@ -14,7 +14,7 @@ def fixture(tmp_path, sources):
 def edges(result):
     files = {f.id:f.path for f in result.files}
     modules = {m.id:files[m.file_id] for m in result.modules}
-    return [(modules[r.source_id], modules.get(r.target_id), r.resolution, r.dependency_phase) for r in result.graph.relationships]
+    return [(modules[r.source_id], modules.get(r.target_id), r.resolution, r.dependency_phase) for r in result.graph.relationships if r.kind == RelationshipKind.IMPORT]
 
 
 def test_python_relative_absolute_src_conditional_dynamic_external(tmp_path):

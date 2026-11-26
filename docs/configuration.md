@@ -34,17 +34,50 @@ are exact scalar thresholds, not universal quality standards. Unknown rule IDs o
 threshold names fail configuration validation. Disabling a rule records disabled
 rule coverage with zero evaluations. Measurements still run and remain visible.
 
-Static resolution reads already-discovered strict JSON package.json and tsconfig.json
-only. TS aliases support nearest tsconfig `compilerOptions.paths` with zero/one-star
-patterns and local `baseUrl`; multiple candidates remain ambiguous. JSONC, extends,
-references, conditional exports, bundler plugins and executable configs are not
-resolved. A tsconfig with extends leaves bare imports conservatively unresolved.
-Package main/module/types entry paths are candidates; conflicting entries remain
-ambiguous. No dependencies are installed and no package manager runs during scanning.
+## Milestone 4 resolution and pattern parameters
 
-Extraction budgets currently fixed in code: 200000 traversed nodes per source tree,
-256 tree depth, one-second Tree-sitter parsing timeout, 50000 retained analysis
-entities and 100000 retained imports per scan. Files exceeding extraction budgets
-are failed with safe diagnostics; buffers release between files. Repeated graph
-reachability metrics are unavailable above 2000 primary modules. These safeguards
-are not a hard process memory or CPU limit. Existing discovery budgets also apply.
+Prepared package.json
+files remain strict JSON. tsconfig.json, jsconfig.json and .jsonc accept lexical
+comments and trailing commas without altering quoted strings. Extended .json files
+with compilerOptions/extends may also use JSONC. No JS configuration executes.
+Local relative extends paths resolve from their declaring file, at most 16 links;
+cycles, missing/ignored parents, escaping roots or package-based extends leave
+references unresolved. baseUrl is rooted at its declaring config. paths retains
+its declaring directory when no baseUrl applies. Exact paths keys win; otherwise
+longest literal prefix wins. Zero/one-star patterns only; at most 1024 mappings
+and 128 alternatives per selected key. Multiple viable file candidates remain
+ambiguous rather than assuming runtime extension or condition precedence.
+Nearest tsconfig wins over jsconfig in the same directory. Config parse/resource
+failures remain disclosed; no runtime downloads or dependency installation occurs.
+
+Declared npm/Yarn workspaces (list or packages-list object) and simple pnpm
+packages block-list globs identify internal packages. * respects directory boundaries;
+** spans directories. pnpm advanced YAML/inline/anchored/negated forms are unsupported.
+Package exports supports exact/subpath wildcard targets and nested condition objects;
+all statically visible condition alternatives are candidates, without selecting a
+runtime environment. Missing exported subpaths stay unresolved, even when a file
+exists. main/module/types and indexes remain conservative alternatives when exports
+is absent. Python source-root/package behavior is unchanged.
+
+All new pattern rules use a per-matching-line occurrence value of 1 and a default
+threshold of 0, with strict greater-than. A threshold >=1 suppresses findings;
+prefer disabled_rules to record intentional disabling. Parameters:
+
+- occurrence_sec_001 through occurrence_sec_007
+- occurrence_rel_001 through occurrence_rel_004
+- occurrence_ai_001 and occurrence_ai_002
+- occurrence_cost_001
+- credential_occurrences
+
+Detection semantics and nonnumeric exact parameters are in the generated
+[rule catalog](rules/index.md). No per-pattern allowlist, entropy threshold, provider
+validation, history switch or persistent-state option is supplied. Threshold settings
+do not expand detector scope. Missing SDK limit indicators can be supplied through
+wrappers/runtime settings; the rule never confirms globally absent limits.
+
+Native parsing/extraction now has a five-second parent deadline, three CPU seconds,
+one-second parser timeout and disabled core dumps. Retained entities are capped at
+50000 and total import/call/request declarations at 100000. Existing per-file bytes,
+200000-node and 256-depth traversal budgets remain. HTTP candidate matching is capped
+at 1000000 comparisons with unresolved declarations and explicit failure diagnostics
+when exhausted. No scan-wide hard memory/time sandbox is claimed.

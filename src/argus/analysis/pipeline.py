@@ -6,18 +6,21 @@ from .extraction import extract
 from .resolution import Resolver
 from .graphs import NetworkXBackend
 from .rules import REGISTRY, evaluate
+from .risks import detect, credentials
+from .isolation import isolated_extract
+from .parsing import GRAMMARS
 from .adapters import supported_caps, descriptor
-from ..models.analysis import Graph, GraphNode, Relationship, RelationshipKind, Resolution, Metric
-from ..models.base import Capability, Category, Status, Confidence, Provenance
+from ..models.analysis import Graph, GraphNode, Relationship, RelationshipKind, Resolution, Metric, Finding, ResourceImpact
+from ..models.base import Capability, Category, Status, Confidence, Provenance, Severity
 from ..models.coverage import CapabilityCoverage, FileCoverage, CategoryCoverage
 from ..models.scan import Diagnostic
 from ..models.source import SourceLocation, Evidence
 from ..privacy import identity
 
-LIMITATIONS = ('Structural static analysis only; no security, credential, dependency-health, reliability, performance, AI, cost or framework rules.',
-               'Function/class containment is extracted; no call graph or inheritance resolution, cross-language contracts, embedded-language analysis, runtime loading, conditional package exports or executable configuration resolution. Identifier labels are opaque for privacy.',
-               'SQL is tokenized, not syntax validated. Dockerfile instruction recognition does not validate argument or embedded shell semantics.',
-               'Extraction retains at most 50000 entities and 100000 imports, rejecting further files with explicit failures. Parsing uses file-size, 200000-node and 256-depth traversal budgets; Tree-sitter parsing timeout is one second. Python AST/JSON/TOML and SQL tokenization have no hard time or memory isolation.',)
+LIMITATIONS = ('Limited syntactic security, credential, reliability, AI and cost rules; no authentication, authorization, taint analysis, framework security, dependency-health or safety certification. Credential history, ignored/tracked overrides, reuse, persistence and remediation tracking are unavailable.',
+               'Function/class containment is extracted; partial direct/imported call bindings and inferred frontend HTTP matches only; no general method, inheritance or cross-language type resolution, embedded-language analysis, runtime loading, runtime selection of conditional package exports or executable configuration resolution. Identifier labels are opaque for privacy.',
+               'HTTP matching is bounded to 1000000 endpoint/request comparisons; exhausted matching remains unresolved with diagnostics. Routes, SDK calls and bindings are syntactic candidates, not runtime relationships. SQL is tokenized, not syntax validated. Dockerfile instruction recognition does not validate argument or embedded shell semantics.',
+               'Extraction retains at most 50000 entities and 100000 import/call/request declarations, rejecting further files with explicit failures. Parsing uses file-size, 200000-node and 256-depth traversal budgets; Tree-sitter parsing timeout is one second; native parsing/extraction isolated per file with five-second parent deadline, three CPU seconds and core dumps disabled. Memory hard limits are not enforced. Python AST/JSON/TOML and SQL tokenization have no hard time or memory isolation.',)
 
 
 
@@ -31,33 +34,73 @@ class Analysis:
         self.manifests, self.tsconfigs = {}, {}
         self.entity_count = 0
         self.import_count = 0
+        self.risk_hits = {}
+        self.credential_files = set()
+        self.workspace_patterns = []
 
     def inspect(self, original_path, file, content, eligible):
         self.files[original_path] = file
-        if not eligible or file.language not in SUPPORTED:
+        if not eligible:
+            return
+        if content is not None:
+            try:
+                text = content.decode('utf-8-sig')
+                if '\x00' not in text:
+                    self.credential_files.add(file.id)
+                    self.risk_hits[file.id] = [] if 'ARGUS-CRED-001' in self.settings.disabled_rules else credentials(content, original_path)
+            except UnicodeError:
+                pass
+        if original_path.endswith('pnpm-workspace.yaml') and content is not None:
+            # Only simple literal package glob list entries, not general YAML evaluation.
+            import re
+            text = content.decode('utf-8', errors='replace')
+            if re.search(r'^packages:\s*$', text, re.M):
+                base = original_path.rsplit('/',1)[0] + '/' if '/' in original_path else ''
+                self.workspace_patterns.extend(base + m[1] for m in re.finditer(r'^\s+-\s+[\"\']?([A-Za-z0-9_./*@-]+)[\"\']?\s*$', text, re.M))
+        if file.language not in SUPPORTED:
             return
         if content is None:
             self.failures[file.id] = 'analysis_encoding_unavailable'
             return
         try:
-            parsed = parse(file.language, content)
-            facts = extract(file, parsed)
-            entities = 1 + len(facts.symbols)
-            if self.entity_count + entities > 50000 or self.import_count + len(facts.imports) > 100000:
+            parsed = None
+            if file.language in GRAMMARS:
+                facts, hits = isolated_extract(file, content)
+            else:
+                if file.language == 'json' and original_path.endswith(('tsconfig.json','jsconfig.json','.jsonc')):
+                    from .jsonc import loads
+                    from .parsing import Parsed
+                    parsed = Parsed('json', loads(content), content)
+                else:
+                    try:
+                        parsed = parse(file.language, content)
+                    except ParseFailure:
+                        # Extended project configs may have arbitrary JSON basenames.
+                        if file.language != 'json': raise
+                        from .jsonc import loads
+                        from .parsing import Parsed
+                        value=loads(content)
+                        if not isinstance(value,dict) or not {'compilerOptions','extends'} & value.keys(): raise ParseFailure()
+                        parsed=Parsed('json',value,content)
+                facts = extract(file, parsed)
+                hits = detect(parsed)
+            self.risk_hits.setdefault(file.id, []).extend(hits)
+            entities = 1 + len(facts.symbols) + len(facts.links.endpoints)
+            if self.entity_count + entities > 50000 or self.import_count + len(facts.imports) + len(facts.links.calls) + len(facts.links.requests) > 100000:
                 self.failures[file.id] = 'analysis_resource_limit'
                 return
             self.entity_count += entities
-            self.import_count += len(facts.imports)
+            self.import_count += len(facts.imports) + len(facts.links.calls) + len(facts.links.requests)
             self.facts[file.id] = facts
             if file.language == 'json' and isinstance(parsed.tree, dict):
                 # Retain only resolution-related fields, never arbitrary config values.
                 if original_path.endswith('package.json'):
-                    self.manifests[original_path] = {k: parsed.tree[k] for k in ('name', 'main', 'module', 'types') if k in parsed.tree}
-                if original_path.endswith('tsconfig.json'):
+                    self.manifests[original_path] = {k: parsed.tree[k] for k in ('name', 'main', 'module', 'types', 'exports', 'workspaces') if k in parsed.tree}
+                if 'compilerOptions' in parsed.tree or 'extends' in parsed.tree or original_path.endswith(('tsconfig.json','jsconfig.json')):
                     self.tsconfigs[original_path] = {k: parsed.tree[k] for k in ('compilerOptions', 'extends') if k in parsed.tree}
         except ParseUnavailable:
             self.failures[file.id] = 'grammar_unavailable'
-        except (ParseFailure, RecursionError, MemoryError):
+        except (ParseFailure, RecursionError, MemoryError, ValueError):
             self.failures[file.id] = 'parse_or_extraction_failed'
 
     def finish(self, result):
@@ -67,7 +110,7 @@ class Analysis:
         modules, symbols = [], []
         file_by_id = {f.id: f for f in result.files}
         module_by_file = {fid: facts.module.id for fid, facts in self.facts.items()}
-        resolver = Resolver(self.files, self.manifests, self.tsconfigs)
+        resolver = Resolver(self.files, self.manifests, self.tsconfigs, self.workspace_patterns)
         locations = {}
         measured = {}
         for path, file in sorted(self.files.items()):
@@ -117,6 +160,11 @@ class Analysis:
                     provenance=Provenance.OBSERVED, confidence=Confidence.HIGH if target_id else Confidence.MEDIUM,
                     dependency_phase=fact.phase + ('_conditional' if fact.conditional else ''), evidence_ids=(eid,),
                     limitations=(target.reason, 'Static reference only; alias shadowing, runtime search paths and loading are unverified.')))
+        from .relationships import assemble
+        link_nodes, link_edges, link_diagnostics = assemble(self.facts, file_by_id, resolver, evidence)
+        diagnostics.extend(link_diagnostics)
+        nodes.extend(link_nodes)
+        relationships.extend(link_edges)
         graph = NetworkXBackend().analyze(Graph(nodes=tuple(sorted(nodes, key=lambda n: n.id)), relationships=tuple(sorted(relationships, key=lambda r: r.id))))
         for metric in graph.metrics:
             measured[metric.scope_id, metric.name] = metric.value
@@ -124,7 +172,7 @@ class Analysis:
         rule_coverages = []
         primary_ids = {facts.module.id for fid, facts in self.facts.items() if file_by_id[fid].language in PRIMARY}
         symbol_owners = {s.id: s.module_id for s in symbols}
-        for rule in REGISTRY:
+        for rule in (r for r in REGISTRY if r.evaluator == 'structural'):
             threshold = self.settings.thresholds.get(rule.parameter, rule.default)
             disabled = rule.id in self.settings.disabled_rules
             eligible = sum(f.language in PRIMARY for f in result.files)
@@ -156,6 +204,38 @@ class Analysis:
                 rule_id=rule.id, status=Status.DISABLED if disabled else Status.PARTIAL if eligible else Status.UNSUPPORTED,
                 eligible_units=eligible, evaluated_units=0 if disabled else len(primary_ids),
                 reason='Disabled by local configuration.' if disabled else 'Evaluated eligible successfully extracted primary-language modules only; unsupported, failed and excluded scope remains unreviewed.'))
+        for rule in (r for r in REGISTRY if r.evaluator == 'pattern'):
+            credential = rule.category == Category.CREDENTIALS
+            applicable = {f.id for f in result.files if credential or f.language in rule.languages}
+            evaluated = applicable & (self.credential_files if credential else self.facts.keys())
+            disabled = rule.id in self.settings.disabled_rules
+            cap = Capability.CREDENTIALS if credential else Capability.AI if rule.category == Category.AI else Capability.SECURITY if rule.category == Category.SECURITY else Capability.STRUCTURE
+            rule_coverages.append(CapabilityCoverage(capability=cap, rule_id=rule.id,
+                status=Status.DISABLED if disabled else Status.PARTIAL if evaluated else Status.UNSUPPORTED,
+                eligible_units=len(applicable), evaluated_units=0 if disabled else len(evaluated),
+                reason='Disabled by configuration.' if disabled else 'Only enumerated syntactic patterns evaluated on eligible text or successfully parsed files; no semantic completeness.'))
+            if disabled or self.settings.thresholds.get(rule.parameter, rule.default) >= 1:
+                continue
+            for fid in sorted(evaluated):
+                file = file_by_id[fid]
+                for ordinal, (rule_id, line) in enumerate(sorted(hit for hit in set(self.risk_hits.get(fid, ())) if hit[0] == rule.id)):
+                    loc = SourceLocation(path=file.path, start_line=line, start_column=1)
+                    scope = fid + ':' + str(ordinal)
+                    eid = identity('evidence', rule.id + ':' + scope)
+                    evidence.append(Evidence(id=eid, observation=rule.name + ': registered syntax pattern observed; source and literal values withheld. See versioned rule catalog for detection parameters.',
+                        producer=rule.id, producer_version=rule.version, provenance=Provenance.OBSERVED,
+                        confidence=Confidence.HIGH, locations=(loc,)))
+                    secondary = tuple(Category(c) for c in rule.secondary_categories)
+                    cost = Category.COST in (rule.category,) + secondary
+                    findings.append(Finding(id=identity('finding',rule.id + ':' + scope), rule_id=rule.id, rule_version=rule.version,
+                        category=rule.category, additional_categories=secondary, severity=Severity.MEDIUM,
+                        confidence=Confidence.MEDIUM, provenance=Provenance.HEURISTIC, title=rule.name,
+                        explanation=rule.name + '. ' + rule.rationale, remediation=rule.remediation, evidence_ids=(eid,), affected_ids=(fid,),
+                        locations=(loc,), corrective_actions=(rule.remediation,), acceptance_criteria=(rule.validation,),
+                        limitations=(rule.limitations,), resource_impact=ResourceImpact(
+                            consumption_mechanism=rule.methodology,
+                            potential_financial_consequences='Repeated or unconstrained operations may increase provider or infrastructure consumption; no prices, usage or losses measured.',
+                            limitations=('Static indicator only; runtime limits, batching and caching may exist elsewhere.',)) if cost else None))
         coverage = []
         for entry in result.coverage.files:
             file = file_by_id[entry.file_id]
@@ -169,6 +249,7 @@ class Analysis:
                                               location=SourceLocation(path=file.path, start_line=1, start_column=1)))
             elif entry.file_id in self.facts:
                 caps = supported_caps(file.language)
+                if file.id in self.credential_files: caps.add(Capability.CREDENTIALS)
                 architecture_disabled = (file.language in PRIMARY and
                     all(r.id in self.settings.disabled_rules for r in REGISTRY if r.category == Category.ARCHITECTURE))
                 coverage.append(FileCoverage(file_id=file.id, status=Status.PARTIAL, reason_code='partial_static_analysis',
@@ -178,11 +259,38 @@ class Analysis:
                         reason='All architecture rules disabled.' if c == Capability.ARCHITECTURE and architecture_disabled else 'Conservative static extraction; see language limitations.' if c in caps else 'No implemented analyzer for this capability.') for c in Capability)))
             else:
                 coverage.append(entry)
-        categories = tuple(CategoryCoverage(category=cat, status=Status.PARTIAL if any(r.category == cat and c.evaluated_units for r,c in zip(REGISTRY, rule_coverages)) else Status.UNSUPPORTED,
-                    reason='Initial structural heuristics only.' if cat in (Category.ARCHITECTURE, Category.MAINTAINABILITY) else 'No implemented rules.',
-                    rule_ids=tuple(r.id for r in REGISTRY if r.category == cat)) for cat in Category)
+            if file.id in self.facts:
+                current=coverage[-1]
+                def rule_capability(item):
+                    groups={Capability.SECURITY:Category.SECURITY, Capability.AI:Category.AI}
+                    category=groups.get(item.capability)
+                    if category is None: return item
+                    applicable=[r for r in REGISTRY if r.category==category and file.language in r.languages]
+                    if applicable and all(r.id in self.settings.disabled_rules for r in applicable):
+                        return replace(item,status=Status.DISABLED,evaluated_units=0,reason='All applicable rules disabled.')
+                    return item
+                coverage[-1]=replace(current,capabilities=tuple(rule_capability(c) for c in current.capabilities))
+            # Credential review is independent of parser availability/failure.
+            if file.id in self.credential_files:
+                current = coverage[-1]
+                disabled = 'ARGUS-CRED-001' in self.settings.disabled_rules
+                coverage[-1] = replace(current, status=Status.PARTIAL if current.status == Status.UNSUPPORTED and not disabled else current.status, reason='Text credential patterns evaluated; structural and other capabilities remain unavailable.' if current.status == Status.UNSUPPORTED and not disabled else current.reason, capabilities=tuple(
+                    CapabilityCoverage(capability=c.capability, status=Status.DISABLED if disabled else Status.PARTIAL,
+                        eligible_units=1, evaluated_units=0 if disabled else 1,
+                        reason='Text patterns only; no history, ignored override, tracking or revocation verification.')
+                    if c.capability == Capability.CREDENTIALS else c for c in current.capabilities))
+        def category_coverage(cat):
+            rules=[r for r in REGISTRY if r.category == cat or cat.value in r.secondary_categories]
+            counts={c.rule_id:c for c in rule_coverages}
+            evaluated=any(counts[r.id].evaluated_units for r in rules)
+            disabled=bool(rules) and all(r.id in self.settings.disabled_rules for r in rules)
+            return CategoryCoverage(category=cat,
+                status=Status.PARTIAL if evaluated else Status.DISABLED if disabled else Status.UNSUPPORTED,
+                reason='Limited static patterns only; unavailable sub-capabilities remain unreviewed.' if evaluated else 'All registered rules disabled.' if disabled else 'No applicable rule evaluations; unsupported/excluded/failed scope remains unreviewed.',
+                rule_ids=tuple(r.id for r in rules))
+        categories=tuple(category_coverage(cat) for cat in Category)
         return replace(result, modules=tuple(modules), symbols=tuple(sorted(symbols, key=lambda s:s.id)), findings=tuple(sorted(findings,key=lambda f:f.id)),
             evidence=tuple(sorted(evidence,key=lambda e:e.id)), diagnostics=tuple(diagnostics),
-            graph=replace(graph, metrics=tuple(metrics) + graph.metrics), limitations=LIMITATIONS + result.limitations[1:],
+            graph=replace(graph, metrics=tuple(metrics) + graph.metrics), limitations=LIMITATIONS + result.limitations[3:],
             coverage=replace(result.coverage, files=tuple(coverage), rules=tuple(rule_coverages), categories=categories, limitations=LIMITATIONS),
             inventory=replace(result.inventory, status=Status.PARTIAL if self.failures else result.inventory.status))

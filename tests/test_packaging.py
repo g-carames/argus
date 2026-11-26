@@ -25,7 +25,7 @@ def test_scan_reports_partial_static_analysis(tmp_path):
     assert report["status"] == "partial"
     assert report["coverage"]["files"][0]["status"] == "partial"
     assert len(report["modules"]) == 1
-    assert all(c["status"] == "unsupported" for c in report["coverage"]["categories"] if c["category"] in ("security", "credentials", "ai_specific", "cost_efficiency"))
+    assert all(c["status"] == "partial" for c in report["coverage"]["categories"] if c["category"] in ("security", "credentials", "ai_specific", "cost_efficiency"))
 
 
 def test_python_compatibility_metadata():

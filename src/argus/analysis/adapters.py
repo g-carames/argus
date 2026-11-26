@@ -6,9 +6,9 @@ from ..contracts import AdapterDescriptor, CapabilityDeclaration
 from ..models.base import Capability
 from .parsing import SUPPORTED, PRIMARY, GRAMMARS, grammar, ParseUnavailable
 def supported_caps(language):
-    caps = {Capability.PARSING}
+    caps = {Capability.PARSING, Capability.CREDENTIALS}
     if language in PRIMARY:
-        caps |= {Capability.SYMBOLS, Capability.STRUCTURE, Capability.DEPENDENCIES, Capability.RESOLUTION, Capability.COMPLEXITY, Capability.ARCHITECTURE}
+        caps |= {Capability.SYMBOLS, Capability.STRUCTURE, Capability.DEPENDENCIES, Capability.RESOLUTION, Capability.COMPLEXITY, Capability.ARCHITECTURE, Capability.SECURITY, Capability.CREDENTIALS, Capability.AI, Capability.FRAMEWORK}
     elif language in ('bash', 'shell'):
         caps |= {Capability.SYMBOLS, Capability.STRUCTURE, Capability.COMPLEXITY}
     elif language in ('html', 'css', 'yaml'):
@@ -16,7 +16,7 @@ def supported_caps(language):
     elif language in ('json', 'toml'):
         caps |= {Capability.STRUCTURE, Capability.CONFIGURATION}
     elif language in ('sql', 'dockerfile'):
-        caps = {Capability.STRUCTURE}  # no claim of syntax validation
+        caps = {Capability.STRUCTURE, Capability.CREDENTIALS}  # no claim of syntax validation
     return caps
 
 

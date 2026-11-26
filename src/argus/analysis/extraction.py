@@ -23,6 +23,7 @@ class Facts:
     measurements: list = field(default_factory=list)
     declarations: dict = field(default_factory=dict)
     limitations: tuple = ()
+    links: object = None
 
 
 def extract(file, parsed):
@@ -206,4 +207,6 @@ def extract(file, parsed):
             raise ParseFailure()
         facts.declarations['docker_instruction_count'] = count
         facts.limitations = ('Dockerfile instruction recognition only; arguments, heredocs, stages and embedded shell are not semantically validated.',)
+    from .relationships import collect
+    facts.links = collect(file, parsed, facts)
     return facts

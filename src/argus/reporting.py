@@ -66,7 +66,13 @@ class JsonReportWriter:
                                                           if file.physical_lines is not None
                                                           and entry.reviewed_lines is not None else None),
                                      "unavailable_capabilities": to_data(missing)})
-            if entry.status == Status.UNSUPPORTED:
+            # Text credentials are independent: they must not hide unsupported
+            # structural languages from the prominent unreviewed-language summary.
+            unavailable_structure = (file.language is not None
+                and entry.status not in (Status.EXCLUDED, Status.FAILED)
+                and all(next(c.status for c in entry.capabilities if c.capability == cap) == Status.UNSUPPORTED
+                        for cap in (Capability.PARSING, Capability.STRUCTURE)))
+            if entry.status == Status.UNSUPPORTED or unavailable_structure:
                 key = (file.language or "unclassified", file.kind.value)
                 group = unsupported.setdefault(key, {"language_or_format": key[0], "kind": key[1],
                                                      "file_count": 0, "paths": [], "locations": [],

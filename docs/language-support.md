@@ -1,69 +1,89 @@
 # Implemented language capabilities
 
-Recognition is independent of this table. S = implemented with stated static
-limitations (reported partial), V = syntax validation completed when successful,
-— = unavailable. All supported files remain partial under the requested full
-capability scope. Malformed inputs fail extraction; missing prepared grammars are
-unsupported, never fetched. No grammar alone establishes semantic support.
+Recognition remains independent of analysis. S = limited static capability, V =
+syntax validation on successful parsing, — = unavailable. Every file remains
+partial, failed, excluded or unclassified under the full requested capability scope.
+No row means a safety review. Missing prepared grammars are never downloaded.
 
-| Language | Syntax | Symbols | Structure | Dependencies | Resolution | Complexity | Architecture rules | Configuration |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Python | V, native AST | S | S | S | S | S | S | — |
-| JavaScript | V, Tree-sitter | S | S | S | S | S | S | — |
-| TypeScript | V, Tree-sitter | S | S | S | S | S | S | — |
-| JSX | V, JS grammar | S | S | S | S | S | S | — |
-| TSX | V, TSX grammar | S | S | S | S | S | S | — |
-| Bash | V, Bash grammar | functions | S | — | — | S | — | — |
-| Shell | V, Bash subset | functions | S | — | — | S | — | — |
-| HTML | V, HTML grammar | element spans | S | — | — | — | — | — |
-| CSS | V, CSS grammar | style-rule spans | S | — | — | — | — | — |
-| YAML | V, YAML grammar | block-mapping entry spans | S | — | — | — | — | — |
-| JSON | V, stdlib | — | entry counts | — | — | — | — | entry counts |
-| TOML | V, stdlib | — | entry counts | — | — | — | — | entry counts |
-| SQL | —, tokenization only | — | statement counts | — | — | — | — | — |
-| Dockerfile | —, instruction recognition | — | instruction counts | — | — | — | — | — |
+| Language | Syntax | Symbols/structure | Imports/resolution | Complexity | Architecture | Security | Credentials | Framework routes | AI/cost |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Python | V, AST | S | S | S | S | SEC-001–007 | text patterns | FastAPI, Flask | AI-001/002, COST-001 |
+| JavaScript, TypeScript, JSX, TSX | V, Tree-sitter | S | S | S | S | SEC-001/002/004–007 | text patterns | Express, Next app route handlers | AI-001/002, COST-001 |
+| Bash, shell | V, Bash grammar | functions/structure | — | S | — | — | text patterns | — | — |
+| HTML, CSS, YAML | V, prepared grammar | element/style/mapping spans | — | — | — | — | text patterns | — | — |
+| JSON, JSONC, TOML | V, stdlib/JSONC lexical reader | entry counts | configuration used for JS resolution only | — | — | — | text patterns | — | — |
+| SQL | tokenization only | statement counts | — | — | — | — | text patterns | — | — |
+| Dockerfile | instruction recognition | instruction counts | — | — | — | — | text patterns | — | — |
+| Other recognized languages and unknown UTF-8 text | — | — | — | — | — | — | text patterns only | — | — |
 
-Security, credentials, frameworks and AI capabilities are unavailable in every row.
-Dependency-health, reliability, performance and cost categories have no rules.
-Bash complexity covers parsed `if`/`elif`/loops/cases conservatively, not command
-execution, expansions or external programs. Generic shell parsing uses the Bash
-grammar; zsh/ksh-specific constructs can fail. HTML embedded script/style and CSS
-preprocessors are not extracted. YAML flow-mapping entries lack symbol spans.
-JSONL is recognized as JSON but non-single-document input fails JSON parsing.
-SQL tokenizer accepts malformed SQL and must never be treated as SQL validation.
-Dockerfile arguments, stages, JSON forms, heredocs and embedded shell are not
-semantically validated; unsupported instruction forms may fail conservatively.
+Python reliability rules REL-001–004 cover broad/swallowed exceptions, explicit
+requests timeouts and selected blocking calls inside async functions. Cost and
+performance consequences share findings through additional categories. The existing
+capability enum has no separate reliability/performance/cost member; rule and category
+coverage express those scopes without adding contract fields.
 
-Primary extractors provide module records, classes, functions/methods, variable
-symbol declarations, lexical parent-child containment, locations, imports and JS
-export markers. Python lambdas are included; JS interfaces/types/enums are class-like
-symbols, not runtime classes. Import binding symbols, Python `__all__`, Python
-comprehension/lambda scope declarations, full destructuring symbols, overload
-semantics, decorators, inheritance and call-target resolution are not complete.
-Type-only imports and mixed type/runtime imports are distinguished; dynamic imports
-and CommonJS references retain phases. Conditions/functions mark conditional loading;
-shadowed `require`, `__import__` and `importlib` names can produce false positives.
-Computed references remain unresolved. No target imports or scripts execute.
+Credential patterns run independently of structural adapters and syntax success,
+only on eligible bounded UTF-8 text without NUL bytes. Discovery exclusions still
+apply. Credential-only review does not establish language/structural support; unknown
+language remains unclassified and other capabilities remain unavailable. Ignored
+local files, tracked-source overrides, accessible history and persistent remediation
+are **not implemented**. Proper local storage cannot be distinguished from exposure
+without that policy/history evidence. `credentials` stays null; candidate findings
+are reported under ARGUS-CRED-001. No raw values or unkeyed credential fingerprints
+are generated. Fully masked source-free evidence is used throughout.
 
-SCSS, Go, Rust, Java, C#, C/C++, Swift, Kotlin, Dart, PHP, Ruby, HCL and other recognized
-formats remain unsupported. Ambiguous headers and unknown extensions remain unclassified.
-Future broad adapters require meaningful extraction, independent capability declarations,
-tests, documentation and explicit missing-capability disclosure.
+## Framework and provider evidence
 
-## Parser selection and preparation
+| Evidence | Implemented use | Unavailable scope |
+| --- | --- | --- |
+| Python FastAPI/APIRouter, Flask/Blueprint imported constructor bound to module variable | Literal decorator paths/methods, literal constructor prefix, same-module include_router prefix | General dependency injection, authentication/authorization, cross-file router mounting, conditional/multiple mounts |
+| ES import of Express; module const app=express() or router=express.Router() | Literal HTTP verb declarations | CommonJS app binding, app.use/router mount composition, middleware semantics |
+| next/server import and exported HTTP verb function under app/api/.../route | Literal filesystem endpoint; single [parameter] segments | pages/api handlers, catch-all/interception/group routing, rewrites, middleware, deployment |
+| fetch; imported Axios default binding | Literal URL or module const string; literal method, parameter-compatible path matching | General wrappers, Axios instances/baseURL, dynamic URL interpolation, environment base URLs, service/deployment identity |
+| OpenAI, Anthropic, Google, LangChain/LangGraph import evidence and recognized call suffix | Explicit output-limit indicator and calls/embeddings inside lexical loops | Provider instance/type validation, arbitrary complete/invoke wrappers, agent termination, output taint, prompt injection, sensitive-data flow, human approval |
 
-`uv sync --locked` installs explicitly packaged JS, TS, Bash, HTML, CSS and YAML
-grammars and the Tree-sitter bindings. Python AST, JSON and TOML use the standard
-library. SQL uses sqlparse for non-validating tokenization. No setup runs during scans.
-Individual grammar packages were chosen over Language Pack: they provide a small,
-explicit installed asset set without any lazy grammar fetching. Tree-sitter offers
-shared traversal and declarative queries; the shared JS/TS import/export query is
-combined with grammar-specific semantic handling. Bindings 0.25.2 and grammar
-versions in uv.lock were tested together on CPython 3.12, macOS arm64.
+Provider recognition is syntactic evidence, not proof a particular client variable
+belongs to the imported SDK. Supported Python import roots are openai, anthropic,
+google, langchain, langgraph; JS exact module names are openai, @anthropic-ai/sdk,
+@google/generative-ai, @google/genai, langchain, @langchain/openai,
+@langchain/langgraph. Exact suffixes and keyword checks are in the generated catalog.
+Custom and mock model wrappers remain unsupported, including laboratory complete calls.
+No AI alignment, agent safety or prompt-injection resistance is certified.
 
-References: [Tree-sitter binding API](https://tree-sitter.github.io/py-tree-sitter/),
-[NetworkX SCC API](https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.components.strongly_connected_components.html).
-The tested 0.25 binding's progress-callback route caused a native crash in validation;
-the implementation uses its native one-second timeout with byte input instead.
-Native parser crashes cannot be contained by Python exceptions; process isolation
-remains future work. Other operating systems and architectures were not measured.
+## Dependency and call extraction
+
+Primary extraction includes module/class/function/declaration symbols, containment,
+locations, static imports/exports, CommonJS, literal dynamic imports, re-exports,
+type-only and conditional imports. Module import resolution supports relative omitted
+extensions, index candidates, JS-to-TS extension alternatives, local TS/JS configs,
+baseUrl, zero/one-star paths, local extends chains, workspace declarations and package
+exports. Details and bounds are in [configuration](configuration.md).
+
+Calls preserve declaration evidence and inferred unique direct/imported bindings,
+including straightforward Python import aliases, JS named imports, module-qualified
+functions and local class instantiation. Unknown bindings retain unresolved call
+edges. Generic methods, receiver type inference, inheritance, default export binding,
+barrel symbol forwarding, destructured/CommonJS call bindings and full lexical
+shadowing/closure/assignment semantics are not complete. Call relationships do not
+enter the established module-import metric projection. HTTP declarations and inferred
+matches retain evidence and locations; matching route strings never proves runtime
+communication. Ambiguous matches have no invented target.
+
+Bash uses a subset grammar for generic shell; zsh/ksh constructs can fail. Embedded
+HTML script/style, CSS preprocessors, YAML flow-entry symbols, executable configs and
+cross-language type semantics are unavailable. JSONL multi-document input fails
+single-document validation. SQL tokenization is not SQL syntax validation. Dockerfile
+arguments/stages/heredocs/embedded shell are not semantically analyzed.
+
+## Prepared parsers and isolation
+
+`uv sync --locked` prepares individually packaged JS, TS, Bash, HTML, CSS and YAML
+grammars with Tree-sitter 0.25 bindings. No Language Pack lazy fetching is used.
+Python AST, JSON/TOML stdlib and SQL sqlparse remain local. The previously observed
+native crash was associated with the binding's progress-callback route; that route
+remains unused. Native parse/extraction now executes in a short-lived trusted process,
+with one-second parser timeout, three CPU seconds, five-second parent deadline and
+core dumps disabled. Abnormal exits/timeouts become file failures; source/exception
+text is withheld. This contains failures rather than claiming the upstream native
+bug is fixed. No hard memory cap; Python/JSON/TOML/SQL are not isolated. POSIX CLI on
+macOS arm64 is measured; other platforms and multithreaded spawn are not validated.

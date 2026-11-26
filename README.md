@@ -44,11 +44,11 @@ Local-first, multilingual software architecture intelligence and static risk ana
 
 ## Current development status
 
-Milestone 3 adds multilingual static extraction, conservative dependency resolution,
-NetworkX graph analysis and nine configurable structural architecture/maintainability
-rules to the validated discovery infrastructure. Detailed language capabilities,
-rule parameters and measured validation results are linked below. Security,
-credentials, framework, reliability, AI and cost rules remain unavailable.
+Milestone 4 adds fifteen security, textual credential, reliability, AI and cost
+pattern rules to the nine structural rules, plus configuration/workspace resolution,
+limited call bindings and inferred HTTP relationships. Detailed tested scope and
+remaining gaps are in the [Milestone 4 record](docs/milestone-4.md) and
+[independent evaluation](docs/milestone-4-evaluation.md).
 No remediation storage, Markdown/HTML renderer or graphical interface is implemented.
 
 Requires Python >=3.12 and uv:
@@ -80,7 +80,7 @@ See [Milestone 2.1 validation](docs/milestone-2.1.md) for diagnostic codes, regr
 coverage, and the independent seven-repository inventory revalidation.
 
 Inventory may complete while the scan remains `partial`: supported files receive
-listed structural analysis, while unavailable capabilities remain **Not Reviewed**.
+listed static capabilities, while unavailable capabilities remain **Not Reviewed**.
 Installation can download free dependencies; backend operation is entirely local.
 
 See [backend architecture](docs/architecture.md) and the
@@ -114,7 +114,7 @@ The objective is to make AI-assisted software development more transparent, iter
 
 ## Analysis Capabilities
 
-Milestone 3 implements local structural architecture and maintainability analysis. Other categories below remain product goals:
+Current implemented subsets are listed in the [capability matrix](docs/language-support.md). The broader categories below include future goals:
 
 - Architectural integrity: dependency graphs, module relationships, architectural layers, dependency direction and type, circular dependencies, centrality, coupling, and blast radius indicators.
 - Security: evidence-backed indicators of weak security and authorization boundaries.
@@ -130,13 +130,14 @@ Rules are intended to be independently extensible and configurable. Findings mus
 
 Planned reporting includes versioned JSON, deterministic structured Markdown for AI-agent remediation, and an independently developed interactive HTML Architecture Explorer. Only versioned JSON reporting is currently implemented. Repository-derived evidence is untrusted data and must remain separate from trusted rule-authored remediation instructions.
 
-## Milestone 3 implementation
+## Current implementation
 
 Python, JavaScript, TypeScript, JSX and TSX now produce entities, static imports,
 resolved/unresolved relationships, module graphs, NetworkX metrics and nine
 configurable architecture/maintainability heuristics. SQL, HTML, CSS, YAML, JSON,
 TOML, Bash/shell and Dockerfile have narrower extraction capabilities.
-Security, credentials, AI, cost and other deferred analysis categories remain unavailable.
+Milestone 4 adds the tested pattern and relationship subsets described above; persistent
+credential remediation, history, broad framework security and deeper AI dataflow remain unavailable.
 No UI, HTML templates, automatic remediation, commits or remote reporting are included.
 
 Install prepared dependencies with `uv sync --locked`; run `uv run argus scan PATH`.
@@ -149,8 +150,8 @@ coverage, failures, unsupported portions and the mandatory disclaimer.
 - [Exact language capability matrix](docs/language-support.md)
 - [Configuration and thresholds](docs/configuration.md)
 - [Analysis and graph limitations](docs/limitations.md)
-- [Measured independent laboratory evaluation](docs/milestone-3-evaluation.md)
-- [Implementation and validation record](docs/milestone-3.md)
+- [Measured independent laboratory evaluation](docs/milestone-4-evaluation.md)
+- [Implementation and validation record](docs/milestone-4.md)
 
 ## Multilingual Support and Coverage Transparency
 

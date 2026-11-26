@@ -52,7 +52,7 @@ def test_configuration_and_registry(tmp_path):
     p.write_text('[analysis]\ndisabled_rules=["ARGUS-ARCH-001"]\n[analysis.thresholds]\nfunction_length=25\ndegree_centrality=0.8\n')
     settings = load_settings(p)
     assert settings.analysis.thresholds['function_length'] == 25
-    assert len({r.id for r in REGISTRY}) == 9
+    assert len({r.id for r in REGISTRY}) == 24
     for content in ('[analysis.thresholds]\nnope=1', '[analysis.thresholds]\nfunction_length=true',
                     '[analysis]\ndisabled_rules=["unknown"]'):
         p.write_text(content)
