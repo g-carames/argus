@@ -10,7 +10,7 @@ from ..privacy import identity
 
 LIMITATIONS = (
     'Bounded static analysis only; no runtime enforcement, authentication/authorization, validation effectiveness, isolation, caching, throttling, retries or shared agent budgets verified.',
-    'Bounded Python and JS-family flow supports statically resolved module functions, arguments/returns and finite collection domains. Dynamic dispatch, exceptions, mutable global invariants, arbitrary aliases and scheduling remain incomplete.',
+    'Bounded Python and JS-family flow supports statically resolved module functions, arguments/returns and finite collection domains. Dynamic dispatch, dynamic exception matching, mutable global invariants, arbitrary aliases and scheduling remain incomplete; builtin Python handlers/finally are supported within the CFG slice.',
     'JavaScript uses a separate restricted Tree-sitter lowering; coercion, closures, prototypes, getters, destructuring, promise scheduling and general counter-loop bounds remain unavailable. Provider import plus suffix without a resolved receiver remains heuristic evidence.',
 )
 
@@ -101,9 +101,11 @@ def investigate(facts_by_file, graph, evidence, files):
             affected.update(g for g in gaps[fid] if 'limit' in g)
             # De-duplicate graph and interpreter contexts conservatively.
             applicable=bool(bounded) and len(bounded)==len(contexts) and not affected
-            configured=any(s.configuration_observed for s in contexts)
+            configured=key in ('ARGUS-REL-003','ARGUS-AI-001') and any(s.configuration_observed for s in contexts)
             state=M.ESTABLISHED if applicable or limited and len(limited)==len(contexts) and not affected else M.PARTIAL if bounded or limited else M.UNVERIFIED if configured else M.INCOMPLETE if affected else M.NONE
-            if not bounded and not limited and not configured and any(s.operation in ('model','embedding') and not s.receiver_resolved for s in contexts): state=M.UNDETERMINED
+            if affected:state=M.INCOMPLETE
+            if not affected and not bounded and not limited and not configured and any(s.operation in ('model','embedding') and not s.receiver_resolved for s in contexts): state=M.UNDETERMINED
+            if key in ('ARGUS-AI-002','ARGUS-COST-001') and all(not s.receiver_resolved for s in contexts) and not affected:state=M.UNDETERMINED
             if key in ('ARGUS-SEC-001','ARGUS-SEC-004'): state=M.UNSUPPORTED
             loc=SourceLocation(path=files[fid].path,start_line=line,start_column=1)
             eid=identity('evidence',fid+':context:'+key+':'+str(line))

@@ -194,3 +194,9 @@ timeout, SQL and credential classification corrections, independent semantic
 observations (schema 1.4.0), diagnostic exit-code changes and release validation.
 The [versioned rule catalog](docs/rules/index.md) and
 [capability matrix](docs/language-support.md) define the supported scope.
+
+## Milestone 6.3C semantic execution
+
+Python semantic analysis now executes a source-anchored CFG with a bounded worklist, conservative joins/widening, builtin numeric/length predicates, loop exits and supported exception/finally transfers. Public JSON is version 1.6.0. Unknown decorators expose body facts separately from callable guarantees. JS/TS keeps its limited frontend slice; Python predicate and handler semantics are not applied to it.
+
+See [semantic execution and owner review](docs/milestone-6.3C.md), [architecture](docs/architecture.md), [public contract](docs/data-contract.md) and [limitations](docs/limitations.md). No independent evaluation improvement is claimed.

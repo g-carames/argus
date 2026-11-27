@@ -15,6 +15,9 @@ def flow(source, budgets=Budgets()):
 
 
 def findings(tmp_path, source, rule='ARGUS-AI-002'):
+    # Bound/effect controls require a genuine static receiver. Unresolved suffix
+    # candidates are tested separately and never establish operation purity.
+    source=source.replace('import openai\n','import openai\nclient=openai.OpenAI()\nrows=list(source)\n')
     (tmp_path/'a.py').write_text(source)
     return [f for f in scan(tmp_path).findings if f.rule_id==rule]
 
@@ -26,6 +29,9 @@ MODEL='client.chat.completions.create(model="synthetic", max_tokens=10)'
     ('range(2,8,2)',True),('range(runtime)',False)])
 def test_local_bounds_retained_observation(tmp_path,collection,bounded):
     fs=findings(tmp_path,f'import openai\nfor x in {collection}:\n {MODEL}\n')
+    if collection=='range(0)':
+        assert fs==[]  # Proven unreachable body is no longer a reachable operation.
+        return
     assert len(fs)==1
     assert (fs[0].assessment.mitigation_state==M.ESTABLISHED)==bounded
     assert fs[0].severity.value=='medium'  # A bound alone does not establish acceptable impact.
@@ -154,12 +160,14 @@ def test_budget_exhaustion_disclosed(budget,source,reason):
 
 def test_cfg_branch_loop_and_return_edges():
     r=flow('if x:\n y=1\nelse:\n y=2\nwhile z:\n y=3\ndef f():\n return 1')
-    branch=next(n for n in r.cfg if n.kind=='If')
-    assert len(branch.successors)==2
-    ret=next(n for n in r.cfg if n.kind=='Return')
-    assert ret.successors==()
-    loop=next(n for n in r.cfg if n.kind=='While')
-    assert any(loop.index in n.successors for n in r.cfg if n.kind=='Assign')
+    from argus.analysis.control_flow import EdgeKind
+    blocks=[b for graph in r.cfg for b in graph.blocks]
+    branch=next(n for n in blocks if n.kind=='branch')
+    assert {e.kind for e in branch.edges}=={EdgeKind.TRUE,EdgeKind.FALSE,EdgeKind.EXCEPTION}
+    ret=next(n for n in blocks if n.kind=='return')
+    assert any(e.kind==EdgeKind.RETURN for e in ret.edges)
+    loop=next(n for n in blocks if n.kind=='loop_test')
+    assert any(any(e.target==loop.index and e.kind==EdgeKind.BACK for e in n.edges) for n in blocks if n.kind=='back')
 
 
 def test_unknown_and_conflicting_lattice():
@@ -169,7 +177,9 @@ def test_unknown_and_conflicting_lattice():
 
 
 def test_unsupported_controls_diagnostics(tmp_path):
-    fs=findings(tmp_path,'import openai\ntry:\n for x in xs:\n  '+MODEL+'\nexcept Exception:\n pass')
+    original=findings(tmp_path,'import openai\ntry:\n for x in xs:\n  '+MODEL+'\nexcept Exception:\n pass')
+    assert original and original[0].assessment.mitigation_state!=M.ESTABLISHED
+    fs=findings(tmp_path,'import openai\nwith unknown_context():\n for x in xs:\n  '+MODEL)
     assert fs and fs[0].assessment.mitigation_state==M.INCOMPLETE
     assert any(d.code=='semantic_analysis_incomplete' for d in scan(tmp_path).diagnostics)
 

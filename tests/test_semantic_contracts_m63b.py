@@ -29,7 +29,10 @@ def flow(source):
 ])
 def test_compatible_exit_joins(branch,bound):
     f=flow('def cap(xs):\n '+branch+'\n return xs[:3]\nx=cap(rows)\n')
-    assert f.exports['x'].size==bound
+    if 'else:\n  raise TypeError()' in branch or 'finally:\n  raise ValueError()' in branch:
+        assert 'x' not in f.exports
+        assert not any(s.operation=='assignment' and s.line>1 for s in f.result.sites)
+    else:assert f.exports['x'].size==bound
 
 
 def test_unknown_value_and_absent_return_are_distinct_channels():

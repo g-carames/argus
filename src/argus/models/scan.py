@@ -8,10 +8,10 @@ from .base import Capability, Category, Record, Status, nonempty, require, uniqu
 from .coverage import Coverage
 from .credentials import CredentialExposure, CredentialCandidate
 from .execution import ExecutionMetadata, ResourceBudget, RootScope
-from .semantic import SemanticObservation
+from .semantic import SemanticObservation, SemanticFileAnalysis
 from .source import Evidence, Module, SourceFile, SourceLocation, Symbol
 
-SCHEMA_VERSION = "1.5.0"
+SCHEMA_VERSION = "1.6.0"
 DISCLAIMER = (
     "Argus is a software architecture analysis and decision-support tool. It does not certify or "
     "guarantee software safety, security, correctness, reliability, regulatory compliance, or AI "
@@ -103,6 +103,7 @@ class ScanResult(Record):
     symbols: tuple[Symbol, ...] = ()
     findings: tuple[Finding, ...] = ()
     semantic_observations: tuple[SemanticObservation, ...] = ()
+    semantic_analysis: tuple[SemanticFileAnalysis, ...] = ()
     graph: Graph = Graph()
     credentials: tuple[CredentialExposure, ...] | None = None
     credential_candidates: tuple[CredentialCandidate, ...] = ()
@@ -143,12 +144,20 @@ class ScanResult(Record):
         require(set(files) == {item.file_id for item in self.coverage.files}, "file coverage mismatch")
         unique(tuple(o.id for o in self.semantic_observations))
         graph_ids={n.id for n in self.graph.nodes}
+        scope_ids=set(files)|set(modules)|set(symbols)
+        relationship_ids={r.id for r in self.graph.relationships}
+        observation_counts={}
+        for observation in self.semantic_observations:observation_counts[observation.file_id]=observation_counts.get(observation.file_id,0)+1
+        unique(tuple(s.file_id for s in self.semantic_analysis))
+        for summary in self.semantic_analysis:
+            require(summary.file_id in files, 'dangling semantic accounting file')
+            require(summary.emitted_observations==observation_counts.get(summary.file_id,0), 'semantic accounting mismatch')
         for observation in self.semantic_observations:
             require(set(observation.candidate_target_ids)<=graph_ids, 'dangling semantic target candidate')
             require(observation.file_id in files, 'observation references missing file')
-            require(observation.scope_id in set(files)|set(modules)|set(symbols), 'observation references missing scope')
+            require(observation.scope_id in scope_ids, 'observation references missing scope')
             require(set(observation.evidence_ids) <= evidence_ids, 'dangling semantic evidence')
-            require(set(observation.relationship_ids) <= {r.id for r in self.graph.relationships}, 'dangling semantic relationship')
+            require(set(observation.relationship_ids) <= relationship_ids, 'dangling semantic relationship')
         unique(tuple(c.id for c in self.credential_candidates))
         for candidate in self.credential_candidates:
             require(candidate.file_id in files and set(candidate.evidence_ids)<=evidence_ids, 'dangling credential candidate')

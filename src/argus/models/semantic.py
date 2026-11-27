@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 from enum import StrEnum
 from .base import Record, require
+from .source import SourceLocation
 
 
 class MitigationState(StrEnum):
@@ -108,13 +109,53 @@ class SemanticObservation(Record):
     candidate_target_ids: tuple[str, ...] = ()
     fact_state: str = 'known'
     exit_channels: tuple[str, ...] = ()
-    contract_version: str = '1.1.0'
+    bound_supported: bool = True
+    lower_bound: int | None = None
+    finite: bool = False
+    operation_upper_bound: int | None = None
+    iteration_upper_bound: int | None = None
+    conditional_execution: bool = False
+    observation_scope: str = 'effective_invocation'
+    reachability: str = 'potential'
+    constrained_value_id: str | None = None
+    constraint_applicability: str = 'unverified'
+    constraint_locations: tuple[SourceLocation, ...] = ()
+    contract_version: str = '1.2.0'
 
     def validate(self):
         require(bool(self.id and self.file_id and self.scope_id and self.conclusion), 'observation identity and conclusion required')
         require(bool(self.evidence_ids), 'observation requires evidence')
         require(self.upper_bound is None or self.upper_bound>=0, 'negative bound')
+        require(self.constraint_applicability in ('all_reaching_states','some_reaching_states','unverified'), 'invalid predicate applicability')
+        require(self.observation_scope in ('function_body','effective_invocation','scope_gap','projection_summary'), 'invalid observation scope')
+        require(self.reachability in ('potential','abstract_reachable','unreachable'), 'invalid reachability')
+        require(self.operation_upper_bound is None or self.operation_upper_bound>=0, 'invalid operation bound')
+        require(self.lower_bound is None or self.lower_bound>=0, 'invalid lower bound')
         require(self.fact_state in ('known','possible','unknown','incomplete'), 'invalid fact state')
         require(set(self.exit_channels)<= {'normal_fallthrough','returned','raised','unreachable','unsupported_control'}, 'invalid exit channel')
         require(self.argument_position is None or self.argument_position>=0, 'invalid argument position')
-        require(self.contract_version == '1.1.0', 'unsupported observation version')
+        require(self.contract_version == '1.2.0', 'unsupported observation version')
+
+
+@dataclass(frozen=True, kw_only=True)
+class SemanticFileAnalysis(Record):
+    file_id: str
+    worklist_steps: int = 0
+    widenings: int = 0
+    reachable_blocks: int = 0
+    cfg_blocks: int = 0
+    prepared_cfg_nodes: int = 0
+    contexts: int = 0
+    transfer_steps: int = 0
+    requested_observations: int = 0
+    emitted_observations: int = 0
+    omitted_observations: int = 0
+    consolidated_gap_occurrences: int = 0
+    omitted_kinds: tuple[str, ...] = ()
+    omitted_scope_ids: tuple[str, ...] = ()
+    omitted_context_ids: tuple[str, ...] = ()
+    omitted_locations: tuple[SourceLocation, ...] = ()
+
+    def validate(self):
+        require(all(v>=0 for v in (self.worklist_steps,self.widenings,self.reachable_blocks,self.cfg_blocks,self.prepared_cfg_nodes,self.contexts,
+            self.transfer_steps,self.requested_observations,self.emitted_observations,self.omitted_observations,self.consolidated_gap_occurrences)), 'invalid semantic accounting')

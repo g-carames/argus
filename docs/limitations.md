@@ -158,3 +158,17 @@ when code moves. No persistent comparison engine is implemented. Additional unkn
 and incomplete observations grow reports and can reach the unchanged projection
 limit sooner. Core analysis has no hard memory cap. Richer reports are not broader
 semantic completeness, and no independent benchmark improvement is claimed.
+
+## Milestone 6.3C limitations
+
+The bounded worklist improves actual Python state computation but is not general program verification. Joins lose disjunction correlations; widening loses precise post-loop scalar values; there is no general narrowing or recursive summary fixed point. Only known builtin scalar/collection predicates refine. Unknown protocols, effectful truthiness/comparison, arbitrary membership and JS coercion remain uncertain. A positive guard must constrain the consumed identity on every relevant successful path and survive mutation/reassignment.
+
+Loop counts are per scope/context maxima under supported operation placement. Unknown bounds are not infinite execution. An unknown object's slice is only a parameter hint (`bound_supported=false`), never a consumption guarantee. Early break can reduce supported loop counts; arbitrary termination proofs remain unavailable. Unknown external callers remain present. Body return bounds under unknown decorators/async functions are not callable guarantees. Only a narrow proven identity decorator is supported.
+
+Explicit builtin exceptions, candidate handlers, else and finally transfers are supported. Unknown exception types retain potential handlers and unhandled exits. Nested active exceptions are conservatively joined rather than a complete runtime exception stack. Arbitrary object protocol exceptions, generators, exception groups, context managers, imports, dynamic decorators and async scheduling are not fully modeled. Incomplete behavior never proves caller continuation unreachable.
+
+Effects have no general heap or points-to solver. Unknown calls/attributes invalidate mutable constraints broadly. Narrow computed simple-constructor/read-only-method behavior does not establish global purity. SDK, builtin and qualified database operation models remain static library assumptions, not provider verification. No execution, network access or runtime cost measurement occurs.
+
+Projection is bounded and explicitly accounts for omitted evidence. Consolidated gaps retain locations and caller scopes but can still be large. No hard overall memory/wall-time cap is added. Capability coverage and semantic completeness remain distinct. See the owner report for measured performance, deliberate compatibility corrections and remaining concerns.
+
+Unknown conversion, formatting and dictionary-key protocols invalidate existing mutable facts. Unsupported expressions produce scoped gaps and potential nested observations; they cannot silently preserve a successful-continuation guarantee.

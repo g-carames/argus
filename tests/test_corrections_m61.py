@@ -139,7 +139,7 @@ def test_semantic_privacy_and_determinism(tmp_path):
     assert secret not in first and str(tmp_path) not in first
     assert first==JsonReportWriter().render(scan(tmp_path))
     data=json.loads(first)
-    assert data['schema_version']=='1.5.0' and data['semantic_observations']
+    assert data['schema_version']=='1.6.0' and data['semantic_observations']
     assert data['credential_candidates']
 
 
@@ -255,7 +255,10 @@ def test_known_mock_is_inspectable_without_provider_findings(tmp_path):
 
 
 def test_responses_in_unsupported_control_remains_incomplete(tmp_path):
-    r=result(tmp_path,'from openai import OpenAI\nc=OpenAI()\ntry:\n for x in rows:\n  c.responses.create()\nexcept Exception:\n pass')
+    supported=result(tmp_path,'from openai import OpenAI\nc=OpenAI()\ntry:\n for x in rows:\n  c.responses.create()\nexcept Exception:\n pass')
+    assert hits(supported,'AI-002')
+    assert all(f.assessment.mitigation_state!=M.ESTABLISHED for f in hits(supported,'AI-002'))
+    r=result(tmp_path,'from openai import OpenAI\nc=OpenAI()\nwith unknown_context():\n for x in rows:\n  c.responses.create()')
     assert hits(r,'AI-002')
     assert all(f.assessment.mitigation_state==M.INCOMPLETE for f in hits(r,'AI-002'))
 

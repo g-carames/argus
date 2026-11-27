@@ -141,3 +141,9 @@ Run the installed tier with `uv run --locked --offline pytest -m installed_cli`;
 it requires the existing prepared local uv cache, builds a wheel, and installs only
 locked Argus dependencies into a clean temporary environment. It never installs
 synthetic target dependencies. The fast tier is `pytest -m 'not installed_cli'`.
+
+## Milestone 6.3C semantic limits
+
+Existing private defaults remain depth 4, contexts 128, CFG preparation nodes 2,048 per flow, transfers 4,096, branch paths 64, summaries 256, workspace modules 128, receiver depth 8 and public observations 4,096 per file. These are not new configuration keys. CFG preparation now accounts for all cached bodies and failed over-limit preparation. Context-summed `cfg_blocks` differs from budgeted `prepared_cfg_nodes`. Transfer counters include failed budget probes; they are not a promise of more successful transfers. Exhaustion is scoped and prevents positive bound/applicability guarantees. No hard process-memory or overall wall-time limit is newly implemented.
+
+Projection consolidates identical mechanism/reason gaps within the same file, owner and caller context, retaining all affected source locations. Priority is call paths; results; arguments/bounds; domains/operations/settings/receivers/invalidation; gaps; assignments. Ties use deterministic identity. Above the unchanged cap, one slot is reserved for a truncation summary. Requested/emitted/omitted counts and omitted kinds/scopes/contexts/locations are public; consolidation is counted separately from omission. Distinct caller contexts never merge merely because values are equal.

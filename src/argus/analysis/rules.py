@@ -155,6 +155,10 @@ REGISTRY=tuple(replace(r,version='1.4.0',
     contextual_analysis=(r.contextual_analysis+' Milestone 6.3B separates raised exits from successful returns, preserves source-qualified caller/actual/formal/result linkage, reconciles computed receiver targets before graph assessment, and scopes unsupported-control evidence. Unknown returns and external entries remain uncertain; handlers/finally, predicate refinement and exceptional call continuations remain unsupported.'),
     contextual_tests='tests/integration/test_semantic_cli.py')
     if r.id in SEMANTIC_CORRECTIONS else r for r in REGISTRY)
+CONTROL_FLOW_RULES={'ARGUS-AI-001','ARGUS-AI-002','ARGUS-COST-001','ARGUS-REL-003','ARGUS-SEC-001','ARGUS-SEC-004'}
+REGISTRY=tuple(replace(r,version='1.5.0',
+    contextual_analysis=r.contextual_analysis+' Milestone 6.3C replaces structured execution with a bounded CFG worklist: Python builtin numeric/length/membership predicates, loop widening, break/continue, builtin exception handlers and finally overrides. Only abstract-reachable operations contribute contextual candidates; zero-iteration/terminated paths retain syntax relationships without reachable risk candidates. Unknown protocols/effects remain conservative; unverified unknown-receiver slice parameters do not establish loop or operation bounds. Only computed simple-constructor/read-only-method effects and qualified library operations receive narrow effect treatment, never suffix-based purity. Decorated and async body facts are distinct from effective invocation guarantees. No general heap, recursive summaries or JS predicate/handler parity.',
+    contextual_tests='tests/integration/test_control_flow_cli.py') if r.id in CONTROL_FLOW_RULES else r for r in REGISTRY)
 BY_ID = {r.id: r for r in REGISTRY}
 
 

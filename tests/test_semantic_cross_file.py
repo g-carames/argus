@@ -27,7 +27,7 @@ def test_imported_constants_defaults_aliases_and_returns(tmp_path):
     engine,result=workspace(tmp_path,{
         'limits.py':'LIMIT=7\ndef cap(xs, *, n=LIMIT):\n return xs[:n]',
         'exports.py':'from limits import cap as limited',
-        'app.py':'from exports import limited as bound\nfrom limits import LIMIT as seconds\nimport requests\nitems=bound(rows)\nfor x in items:\n requests.get(url,timeout=seconds)',
+        'app.py':'from exports import limited as bound\nfrom limits import LIMIT as seconds\nimport requests\nitems=bound(list(rows))\nfor x in items:\n requests.get(url,timeout=seconds)',
     })
     app=next(f for f in engine.flows.values() if engine.paths[f.facts.module.id]=='app.py')
     site=next(s for s in app.result.sites if s.operation=='http')
@@ -72,7 +72,7 @@ def test_timeout_override_unknown_and_disabled():
 def test_js_flow_imports_and_mutation(tmp_path):
     engine,_=workspace(tmp_path,{
         'limits.ts':'export const LIMIT=3; export function cap(xs: string[]) { return xs.slice(0,LIMIT); }',
-        'app.ts':'import {cap} from "./limits"; import OpenAI from "openai"; const client=new OpenAI(); const items=cap(rows); for(const x of items) { client.chat.completions.create({max_tokens:5}); }',
+        'app.ts':'import {cap} from "./limits"; import OpenAI from "openai"; const client=new OpenAI(); const items=cap([1,2,3,4]); for(const x of items) { client.chat.completions.create({max_tokens:5}); }',
     })
     sites=[s for f in engine.flows.values() for s in f.result.sites if s.operation=='model' and s.loops]
     assert sites and any(s.upper_bound==3 and s.limit for s in sites)
@@ -92,10 +92,10 @@ def test_no_literal_retention(tmp_path):
 
 
 def test_finite_numerical_clamp_and_counter():
-    r=flow('import openai\nn=min(runtime,4)\nfor x in range(n):\n client.chat.completions.create(max_tokens=1)\nattempt=0\nwhile attempt<3:\n client.chat.completions.create(max_tokens=1)\n attempt+=1')
+    r=flow('import openai\nclient=openai.OpenAI()\nn=min(int(runtime),4)\nfor x in range(n):\n client.chat.completions.create(max_tokens=1)\nattempt=0\nwhile attempt<3:\n client.chat.completions.create(max_tokens=1)\n attempt+=1')
     sites=[s for s in r.sites if s.operation=='model']
     assert [s.upper_bound for s in sites]==[4,3]
-    r=flow('import openai\nattempt=0\nwhile attempt<3:\n client.chat.completions.create()\n if retry:\n  continue\n attempt+=1')
+    r=flow('import openai\nclient=openai.OpenAI()\nattempt=0\nwhile attempt<3:\n client.chat.completions.create()\n if retry:\n  continue\n attempt+=1')
     assert next(s for s in r.sites if s.operation=='model').upper_bound is None
 
 
@@ -110,12 +110,12 @@ def test_sparse_js_array_is_not_empty(tmp_path):
 
 
 def test_function_alias_preserves_return():
-    r=flow('def cap(xs):\n return xs[:4]\nalias=cap\nitems=alias(rows)\nimport openai\nfor x in items:\n client.chat.completions.create()')
+    r=flow('def cap(xs):\n return xs[:4]\nalias=cap\nitems=alias(list(rows))\nimport openai\nclient=openai.OpenAI()\nfor x in items:\n client.chat.completions.create()')
     assert next(s for s in r.sites if s.operation=='model').upper_bound==4
 
 
 def test_cross_file_function_alias(tmp_path):
-    engine,_=workspace(tmp_path,{'lib.py':'def cap(xs):\n return xs[:2]', 'a.py':'from lib import cap\nf=cap\nimport openai\nfor x in f(rows):\n client.chat.completions.create()'})
+    engine,_=workspace(tmp_path,{'lib.py':'def cap(xs):\n return xs[:2]', 'a.py':'from lib import cap\nf=cap\nimport openai\nclient=openai.OpenAI()\nfor x in f(list(rows)):\n client.chat.completions.create()'})
     assert any(s.upper_bound==2 for f in engine.flows.values() for s in f.result.sites if s.operation=='model')
 
 
@@ -181,7 +181,7 @@ def test_flask_request_source_reaches_execution():
 
 
 def test_module_qualified_constant_and_function(tmp_path):
-    engine,_=workspace(tmp_path,{'lib.py':'LIMIT=6\ndef cap(xs,n):\n return xs[:n]', 'a.py':'import lib as cfg\nimport openai\nfor x in cfg.cap(rows,cfg.LIMIT):\n client.chat.completions.create()'})
+    engine,_=workspace(tmp_path,{'lib.py':'LIMIT=6\ndef cap(xs,n):\n return xs[:n]', 'a.py':'import lib as cfg\nimport openai\nclient=openai.OpenAI()\nfor x in cfg.cap(list(rows),cfg.LIMIT):\n client.chat.completions.create()'})
     assert any(s.upper_bound==6 for f in engine.flows.values() for s in f.result.sites if s.operation=='model')
 
 

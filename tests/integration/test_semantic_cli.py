@@ -65,19 +65,28 @@ def obs(report,kind,path=None,line=None):
 @pytest.mark.parametrize('body,bound,channels',[
     ('return xs[:3]',3,{'returned'}),
     ('if reject:\n  raise ValueError()\n return xs[:3]',3,{'returned','raised'}),
-    ('if reject:\n  return unknown\n return xs[:3]',None,{'returned'}),
-    ('if reject:\n  return xs[:3]',None,{'returned','normal_fallthrough'}),
+    ('if reject:\n  return unknown\n return xs[:3]',None,{'returned','raised'}),
+    ('if reject:\n  return xs[:3]',None,{'returned','normal_fallthrough','raised'}),
     ('raise ValueError()\n return xs[:3]',None,{'raised'}),
     ('if reject:\n  raise ValueError()\n else:\n  raise TypeError()\n return xs[:3]',None,{'raised'}),
-    ('try:\n  return xs[:3]\n finally:\n  return unknown',None,{'normal_fallthrough','unsupported_control'}),
+    ('try:\n  return xs[:3]\n finally:\n  return unknown',None,{'returned'}),
 ])
 def test_successful_exit_channels(cli_scan,body,bound,channels):
-    report=cli_scan({'lib.py':'def cap(xs):\n '+body+'\n','app.py':'from lib import cap\ny=cap(rows)\n'})
+    report=cli_scan({'lib.py':'def cap(xs):\n '+body+'\n','app.py':'from lib import cap\ny=cap(rows)\n',
+        'native.py':'from lib import cap\ny=cap([1,2,3,4])\n'})
     returns=obs(report,'return_bound','lib.py',1)
-    assert returns and all(o['upper_bound']==bound and set(o['exit_channels'])==channels for o in returns)
+    assert returns and all(o['upper_bound']==bound and set(o['exit_channels'])==(channels|{'raised'} if bound is not None and not o['bound_supported'] else channels) for o in returns)
     if bound is None: assert all(o['certainty']=='unknown_or_unresolved' for o in returns)
-    else: assert all(o['certainty']=='statically_established' for o in returns)
+    else:
+        known=obs(report,'assignment_fact','native.py',2)[0]
+        native=[o for o in returns if o['result_id']==known['result_id']]
+        assert len(native)==1 and native[0]['certainty']=='statically_established' and native[0]['bound_supported']
+        opaque=[o for o in returns if o['result_id']!=known['result_id']]
+        assert opaque and all(o['certainty']=='possible_inference' and not o['bound_supported'] for o in opaque)
     assignment=obs(report,'assignment_fact','app.py',2)
+    if channels=={'raised'}:
+        assert assignment==[]
+        return
     assert len(assignment)==1 and assignment[0]['upper_bound']==bound
     linked=[o for o in returns if o['result_id']==assignment[0]['result_id']]
     assert len(linked)==1
@@ -126,7 +135,7 @@ def test_receiver_resolution_and_ambiguous_alternatives(cli_scan):
 
 
 def test_scoped_incompleteness_and_operation_survival(cli_scan):
-    report=cli_scan({'lib.py':'import requests\ndef partial():\n try:\n  pass\n except Exception:\n  pass\ndef clean():\n requests.get(url,timeout=3)\n',
+    report=cli_scan({'lib.py':'import requests\ndef partial():\n with unknown_context():\n  pass\n marker=unknown\n marker=unknown\ndef clean():\n requests.get(url,timeout=3)\n',
         'app.py':'from lib import clean\nclean()\n'})
     timeout=obs(report,'timeout_setting','lib.py',8)
     assert timeout and all(o['certainty']=='statically_established' for o in timeout)
@@ -195,7 +204,7 @@ def test_metamorphic_identity_and_bound_conservation(cli_scan):
 def test_confirmed_raised_exit_regression_public_bound(cli_scan):
     def run(branch):
         return cli_scan({'lib.py':'def cap(xs):\n '+branch+'\n return xs[:3]\n',
-            'app.py':'from lib import cap\nimport requests\nitems=cap(rows)\nfor item in items:\n requests.get(url,timeout=2)\n'})
+            'app.py':'from lib import cap\nimport requests\nitems=cap(list(rows))\nfor item in items:\n requests.get(url,timeout=2)\n'})
     raised=run('if reject:\n  raise ValueError()')
     unknown=run('if reject:\n  return unknown')
     bounds=obs(raised,'collection_bound','app.py',5)

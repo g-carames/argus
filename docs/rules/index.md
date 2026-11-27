@@ -79,3 +79,7 @@ CRED-001 at 1.4.0. Rules and severity thresholds are unchanged. Exit-channel,
 identity, projection and credential-precedence corrections are documented in
 [the validation report](../milestone-6.3B.md); the installed-CLI tier requires exact
 public linkage and uncertainty evidence, alongside the retained unit tests.
+
+## Milestone 6.3C contextual computation
+
+The six existing contextual rules AI-001, AI-002, COST-001, REL-003, SEC-001 and SEC-004 advance to version 1.5.0 for CFG-based reachability, predicates and exit/effect semantics. CRED-001 stays 1.4.0. No rule, threshold or severity is added or silently changed. Syntax relationships survive even when an operation is abstractly unreachable; those operations no longer produce contextual risk candidates. Supported guard evidence may establish scoped applicability without reducing severity. See [the complete owner review](../milestone-6.3C.md).

@@ -415,3 +415,13 @@ code/stage/message equality and retains every distinct affected location. Consum
 must use the location array rather than assuming one diagnostic means one file.
 Known resource exhaustion is distinct from malformed input. Native worker deaths
 with an unknown cause remain failures, not guessed resource exhaustion.
+
+## Current contract: JSON 1.6.0 / semantic observations 1.2.0
+
+This section supersedes historical version statements above. Root `semantic_analysis` contains per-analyzed-file worklist steps, widening events, reachable/context-summed CFG blocks, prepared CFG nodes, contexts and transfer steps, plus projection accounting. Missing analysis statistics for an unsupported file do not mean zero work or reviewed coverage. Coverage denominators remain unchanged.
+
+Observations add `lower_bound`, `finite`, `bound_supported`, `iteration_upper_bound`, `operation_upper_bound`, `conditional_execution`, `reachability`, `observation_scope`, `constrained_value_id`, `constraint_applicability` and privacy-safe `constraint_locations`. Existing actual/formal/result/callsite/context identities remain linked. Unknown numeric endpoints remain null, never infinite execution. `finite` without an upper bound does not establish an iteration maximum. Operation upper bounds apply per entry/context to the supported operation placement, not to aggregate deployment traffic or cost.
+
+Consumers must check `bound_supported`: a preserved slice-parameter hint on an unknown receiver may still have `upper_bound`, but is possible, explicitly unverified and cannot establish cardinality, loop count or mitigation. Supported native collections, predicates and slices supply verified bounds. `function_body` facts do not establish `effective_invocation` guarantees under unresolved decorators or async behavior. `abstract_reachable` means reachable in the supported abstraction, not observed runtime execution; nested unsupported structure is `potential`. Predicate applicability is all-relevant-reaching-states, some-reaching-states or unverified, with exact value and guard provenance.
+
+Gap consolidation uses `scope_gap`; truncation uses `projection_summary`. `semantic_analysis` discloses requested/emitted/omitted observations, consolidated gap occurrences and omitted kinds, scopes, contexts and locations. The unchanged 4,096 limit includes the truncation summary. No hidden omission is permitted. Source-free evidence carries repository-relative paths and locations, not raw predicates or literal strings. Schema-sensitive consumers must accept the new version deliberately.

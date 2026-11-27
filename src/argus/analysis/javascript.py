@@ -64,6 +64,11 @@ def lower(parsed):
         gaps.add('semantic_js_unsupported_expression')
         # Traverse influence through unsupported expressions, never prove a bound.
         return at(n,ast.JoinedStr(values=[expr(c) for c in n.named_children])) if n.named_children else unknown(n)
+    def unsupported_function(n):
+        out=at(n,ast.With(items=[],body=stmts(field(n,'body'))))
+        out.argus_unsupported=True
+        out.argus_lexical_scope=True
+        return out
     def function(n,name=None):
         params=field(n,'parameters')
         params=list(params.named_children) if params else [field(n,'parameter')] if field(n,'parameter') else []
@@ -75,11 +80,11 @@ def lower(parsed):
                 names.append(ast.arg(arg=text(field(node,'left')))); defaults.append(expr(field(node,'right')))
             elif node.type=='identifier':
                 if defaults:
-                    gaps.add('semantic_js_default_binding_unavailable'); return at(n,ast.Pass())
+                    gaps.add('semantic_js_default_binding_unavailable'); return unsupported_function(n)
                 names.append(ast.arg(arg=text(node)))
             else:
                 gaps.add('semantic_js_destructured_or_rest_parameters')
-                return at(n,ast.Pass())
+                return unsupported_function(n)
         body=field(n,'body')
         body=stmts(body) if body and body.type=='statement_block' else [at(n,ast.Return(value=expr(body)))]
         return at(n,ast.FunctionDef(name=name or text(field(n,'name')),args=ast.arguments(posonlyargs=[],args=names,kwonlyargs=[],kw_defaults=[],defaults=defaults),body=body,decorator_list=[]))
@@ -113,7 +118,9 @@ def lower(parsed):
                     out.append(function(value,text(name)))
                 else: out.append(at(c,ast.Assign(targets=[expr(name)],value=expr(value))))
             return out
-        if t in ('function_declaration','generator_function_declaration'): return [function(n)]
+        if t in ('call_expression','new_expression'):
+            return [at(n,ast.Expr(value=expr(n)))]
+        if t in ('function_declaration','generator_function_declaration','method_definition'): return [function(n)]
         if t=='expression_statement':
             e=n.named_children[0]
             if e.type=='assignment_expression': return [at(n,ast.Assign(targets=[expr(field(e,'left'))],value=expr(field(e,'right'))))]
@@ -131,7 +138,10 @@ def lower(parsed):
             return [at(n,ast.While(test=unknown(n),body=stmts(field(n,'body')),orelse=[]))]
         if t=='statement_block': return stmts(n)
         gaps.add('semantic_js_unsupported_control_or_statement')
-        return [at(n,ast.Pass())]
+        children=[s for c in n.named_children for s in stmt(c)] if t!='class_declaration' else [function(m) for c in n.named_children if c.type=='class_body' for m in c.named_children if m.type=='method_definition']
+        out=at(n,ast.With(items=[],body=children or [at(n,ast.Pass())]))
+        out.argus_unsupported=True
+        return [out]
     def stmts(n):
         if n is None: return []
         if n.type in ('program','statement_block'): return [s for c in n.named_children for s in stmt(c)]

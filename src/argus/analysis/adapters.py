@@ -40,9 +40,9 @@ def descriptor(language):
         parser_id, parser_version = 'sqlparse-tokenizer', version('sqlparse')
     else:
         parser_id, parser_version = ('python-ast' if language == 'python' else 'stdlib-or-instruction-reader'), sys.version.split()[0]
-    return AdapterDescriptor(id='argus.' + language, version='1', language=language,
+    return AdapterDescriptor(id='argus.' + language, version='2', language=language,
         parser_id=parser_id, parser_version=parser_version, grammar_version=grammar_version,
         capabilities=tuple(CapabilityDeclaration(capability=c, available=c in available,
             reason='Available with language-specific static limitations.' if c in available else 'No implemented capability or prepared grammar unavailable.',
             limitations=('Syntax success does not establish semantic or security completeness.',
-                          'Python and JS-family: bounded restricted flow and statically resolved module-function contexts; independent partial CFG/dataflow/bounds/taint. No general framework authorization or runtime verification.',)) for c in Capability))
+                          ('Python: bounded CFG worklist, builtin predicates, conservative effects and builtin exception/finally transfers; no general heap, recursive summaries or protocol reasoning.' if language=='python' else 'JS-family: restricted CFG transfers; Python predicate, coercion, class, promise and exception-handler semantics are not language support.') if language in PRIMARY else 'Semantic solver unavailable for this format.',)) for c in Capability))

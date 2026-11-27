@@ -288,3 +288,17 @@ second copied observation collection exists. Projection follows contextual fact
 production and emits source-free typed records independently of risk findings.
 Public models validate evidence, relationship and candidate-target references.
 See [contracts](data-contract.md) and [validation](milestone-6.3B.md).
+
+## Milestone 6.3C: executable control-flow backbone
+
+The current pipeline is extraction → sanitized frontend IR → shared CFG → existing expression transfers under the worklist solver → workspace context expansion → deterministic receiver reconciliation → contextual investigation → prioritized public projection. `control_flow.py`, `abstract.py`, `predicates.py` and `solver.py` replace structured statement execution; they do not form a parallel engine. Native Python AST remains the Python frontend. JS lowering supplies only its compatible partial slice.
+
+Basic blocks contain one real operation. Administrative entry/exit, handler dispatch and finally save/resume nodes carry no invented source location. Typed normal/true/false/back/return/raise/break/continue/exception/handler/unhandled/finally edges drive execution. Function/module ownership and source-qualified Point identities survive transfer and projection. Cached graphs are reused within a scan only, subject to the shared preparation budget; this is not persistent incremental analysis.
+
+Bottom is an absent incoming state. Reachable unknown values differ from incomplete transfers. Incoming values join by conservative interval/cardinality hull, may-provenance union and must-constraint conjunction. A deterministic deque revisits changed blocks; loop heads widen expanding endpoints after three prior visits. Bounded counters and branch refinements share the existing transfer budget. Normal, pending-return and exception channels remain separate. Finally runs per incoming exit channel and may override it.
+
+The minimal Effect interface distinguishes scalar assignment, replacement, fresh creation, potential collection/attribute mutation, unknown calls and unsupported effects. Unknown effects conservatively invalidate mutable facts; immutable active tuple/range iteration domains can survive. Resolved simple constructors and computed read-only method transfers have narrow supported effects; names or annotations never establish purity. General heap and recursive effect summaries remain absent.
+
+Private sanitized AST, Value, State, CFG and Site records are not serialized. Public observations project source locations, deterministic linkage, certainty, scope, reachability and constraints without raw expressions, string literals or credentials. Repeated visit facts merge before projection; public guarantees must survive every relevant visit.
+
+Unknown conversion, formatting and dictionary-key protocols invalidate existing mutable facts. Unsupported expressions produce scoped gaps and potential nested observations; they cannot silently preserve a successful-continuation guarantee.

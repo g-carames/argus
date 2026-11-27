@@ -74,4 +74,11 @@ class SiteLedger(list):
             call_path_ids=site.call_path_ids or path,
             callsite_id=site.callsite_id or (f.active_call.key('callsite') if f.active_call else None),
             value_id=site.value_id or point.key('value'),
+            constraint_origins=site.constraint_origins or f.current_constraints,
+            constrained_value_id=site.constrained_value_id or f.current_constraint_value_id,
+            constraint_applicability=site.constraint_applicability if site.constrained_value_id else f.current_constraint_applicability,
+            loop_ids=site.loop_ids or f.current_loop_ids,base_loop_bounds=site.base_loop_bounds or f.current_base_loops,
+            observation_scope='function_body' if f.body_only else site.observation_scope,
+            reachability='potential' if f.current_incomplete or f.body_only else 'abstract_reachable',
+            operation_upper_bound=site.upper_bound if site.operation in ('model','embedding','database','http','execution') and site.loops and not f.current_incomplete and not f.body_only and (site.operation not in ('model','embedding','database') or site.receiver_resolved) else None,
             incomplete=tuple(sorted(set(site.incomplete) | f.scope_gaps.get(site.owner,set())))))

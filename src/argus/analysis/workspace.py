@@ -197,4 +197,5 @@ class WorkspaceFlow:
             flow.facts.semantic.sites=list(flow.result.sites)
             flow.facts.semantic.summaries=flow.result.summaries
             flow.facts.semantic.incomplete=tuple(sorted(flow.gaps))
+            flow.facts.semantic.statistics=dict(flow.solver_stats,contexts=flow.counts["contexts"],transfer_steps=flow.counts["iterations"],prepared_cfg_nodes=flow.cfg_nodes_used)
             flow.facts.semantic.scope_gaps={k:tuple(sorted(v)) for k,v in flow.scope_gaps.items()}

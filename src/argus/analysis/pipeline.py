@@ -336,9 +336,12 @@ class Analysis:
                 reason='Limited static patterns only; unavailable sub-capabilities remain unreviewed.' if evaluated else 'All registered rules disabled.' if disabled else 'No applicable rule evaluations; unsupported/excluded/failed scope remains unreviewed.',
                 rule_ids=tuple(r.id for r in rules))
         categories=tuple(category_coverage(cat) for cat in Category)
+        from ..models.semantic import SemanticFileAnalysis
+        semantic_analysis=tuple(SemanticFileAnalysis(file_id=fid,**fact.semantic.statistics,**fact.semantic.projection_accounting)
+            for fid,fact in sorted(self.facts.items()) if fact.semantic and fact.semantic.statistics)
         from ..diagnostics import consolidate
         return replace(result, modules=tuple(modules), symbols=tuple(sorted(symbols, key=lambda s:s.id)), findings=tuple(sorted(findings,key=lambda f:f.id)),
-            credential_candidates=tuple(candidates), semantic_observations=semantic_observations, evidence=tuple(sorted(evidence,key=lambda e:e.id)), diagnostics=consolidate(diagnostics),
+            credential_candidates=tuple(candidates), semantic_observations=semantic_observations,semantic_analysis=semantic_analysis, evidence=tuple(sorted(evidence,key=lambda e:e.id)), diagnostics=consolidate(diagnostics),
             graph=replace(graph, metrics=tuple(metrics) + graph.metrics), limitations=LIMITATIONS + result.limitations[3:],
             coverage=replace(result.coverage, files=tuple(coverage), rules=tuple(rule_coverages), categories=categories, limitations=LIMITATIONS),
             inventory=replace(result.inventory, status=Status.PARTIAL if self.failures else result.inventory.status))

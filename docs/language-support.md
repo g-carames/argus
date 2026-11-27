@@ -132,3 +132,9 @@ loop, receiver and unknown facts survive projection. Existing resolved Python
 receivers reconcile with the final call graph; alternatives remain ambiguous.
 External function entries stay unknown. External method/constructor entry coverage
 is not comprehensive. See [6.3B](milestone-6.3B.md) and the installed-CLI oracles.
+
+## Milestone 6.3C control-flow comparison
+
+Python supplies the first complete supported CFG slice: if/for/while, branch refinement for resolved builtin numeric and collection domains, break/continue, return/explicit raise, supported builtin exception handlers, else and finally overrides. Unsupported with/match/exception groups/comprehensions and dynamic protocols remain explicit gaps; their nested operations can be discovered as potential. Async body observations do not prove effective awaitable results.
+
+JS/TS retains native Tree-sitter parsing and its existing limited lowering, bindings, calls, literal arrays, slices and return/throw separation. Shared normal/branch/loop graph mechanics do not imply Python-compatible coercion, truthiness, predicate refinement, handlers, object or async semantics. JS predicates are not refined with Python rules; try and unsupported nested structures remain potential/incomplete. Unsupported parameter forms preserve nested operations instead of dropping the whole body. There is no language parity claim or new language support.

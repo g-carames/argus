@@ -325,7 +325,7 @@ def reconcile(graph,facts_by_file,files,evidence):
             continue
         reconciled+=1
         targets=tuple(sorted({t for s in sites for t in s.candidate_target_ids}))
-        definite=len(targets)==1 and all(s.target_id==targets[0] and s.fact_state==FactState.KNOWN for s in sites)
+        definite=len(targets)==1 and all(s.target_id==targets[0] and s.fact_state in (FactState.KNOWN,FactState.INCOMPLETE) for s in sites)
         resolution=Resolution.RESOLVED if definite else Resolution.AMBIGUOUS if targets else Resolution.UNRESOLVED
         site=sites[0]
         rid=identity('relationship','semantic:'+callsite)
@@ -337,12 +337,12 @@ def reconcile(graph,facts_by_file,files,evidence):
             target_reference=callsite,kind=RelationshipKind.CALL,language=files[fid].language,
             resolution=resolution,provenance=Provenance.INFERRED,confidence=Confidence.MEDIUM,evidence_ids=(eid,),
             callsite_id=callsite,context_ids=tuple(sorted({s.context_id for s in sites})),candidate_target_ids=targets,
-            limitations=('Bounded nonrecursive static contexts only; external callers and dynamic receiver behavior remain unknown. Syntax evidence is retained.',))
+            limitations=('Bounded nonrecursive static contexts only; external callers and dynamic receiver behavior remain unknown. Syntax evidence is retained.',)+tuple(sorted({gap for s in sites for gap in s.incomplete})))
         # Exact shared callsite identity avoids line-only attribution and an
         # O(computed_calls * all_edges) reconciliation scan. Constructor syntax
         # may resolve to a class while its implicit initializer is a distinct edge.
         matching=[(i,edges[i]) for i in syntax_index.get(callsite,())
-            if edges[i].target_id==resolved.target_id or edges[i].resolution!=Resolution.RESOLVED]
+            if edges[i].target_id==resolved.target_id or edges[i].resolution!=Resolution.RESOLVED or resolution==Resolution.AMBIGUOUS and edges[i].target_id in targets]
         if len(matching)==1:
             index,syntax=matching[0]
             edges[index]=replace(resolved,id=syntax.id,evidence_ids=syntax.evidence_ids+resolved.evidence_ids)
