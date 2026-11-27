@@ -103,6 +103,9 @@ class Relationship(Record):
     limitations: tuple[str, ...] = ()
     dependency_phase: str | None = None
     extension_kind: str | None = None
+    callsite_id: str | None = None
+    context_ids: tuple[str, ...] = ()
+    candidate_target_ids: tuple[str, ...] = ()
 
     def validate(self) -> None:
         for value in (self.id, self.source_id, self.language):
@@ -113,6 +116,8 @@ class Relationship(Record):
                 "resolved relationship requires target")
         require(self.resolution not in (Resolution.UNRESOLVED, Resolution.AMBIGUOUS)
                 or self.target_id is None, "unresolved relationship cannot invent target")
+        unique(self.candidate_target_ids)
+        require(not self.candidate_target_ids or self.resolution!=Resolution.RESOLVED or self.target_id in self.candidate_target_ids, 'resolved target missing from candidates')
         require((self.kind == RelationshipKind.EXTENSION) == bool(self.extension_kind),
                 "extension relationships require a namespaced kind")
 
@@ -237,6 +242,7 @@ class Graph(Record):
             require(node.parent_id is None or node.parent_id in ids, "dangling parent node")
         require(all(summary.node_id in ids for summary in self.risk_summaries), "dangling risk summary node")
         for edge in self.relationships:
+            require(set(edge.candidate_target_ids)<=set(ids), 'dangling candidate target')
             require(edge.source_id in ids and (edge.target_id is None or edge.target_id in ids),
                     "dangling graph endpoint")
         for cycle in self.cycles:

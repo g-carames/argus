@@ -118,3 +118,17 @@ all exclusions are in [Milestone 5.1](milestone-5.1.md). No runtime safeguard pr
 Parser availability remains independent of every capability. Authentication
 registration does not establish effective authentication, authorization or caller
 protection. See the exact regression scope in `tests/test_corrections_m61.py`.
+
+## Milestone 6.3B information preservation
+
+Python's bounded structured interpreter separates explicit returns, raised exits
+and fallthrough; the existing JS-family lowering consumes the same exit contract.
+Neither implements a general exception/CFG solver. Handler/finally statements remain
+unsupported and cannot establish successful-return bounds. No new language or
+framework capability is claimed.
+
+Source-qualified caller/argument/formal/result identities and calculated assignment,
+loop, receiver and unknown facts survive projection. Existing resolved Python
+receivers reconcile with the final call graph; alternatives remain ambiguous.
+External function entries stay unknown. External method/constructor entry coverage
+is not comprehensive. See [6.3B](milestone-6.3B.md) and the installed-CLI oracles.

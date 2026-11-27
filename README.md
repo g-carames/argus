@@ -84,7 +84,8 @@ listed static capabilities, while unavailable capabilities remain **Not Reviewed
 Installation can download free dependencies; backend operation is entirely local.
 
 See [backend architecture](docs/architecture.md) and the
-[versioned data contract](docs/data-contract.md). Every generated report includes
+[versioned data contract](docs/data-contract.md), and the
+[Milestone 6.3B semantic validation](docs/milestone-6.3B.md). Every generated report includes
 **Not Reviewed Portions of the Code**, explicit capability/category limitations,
 and the mandatory disclaimer. Coverage and absence of findings never establish safety.
 

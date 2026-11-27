@@ -46,10 +46,11 @@ def extract(file, parsed):
                               end_line=endrow + 1, end_column=column(endrow, endcol))
 
     def symbol(node, kind, parent, key):
-        sid = identity('symbol', mid + ':' + key)
+        location=loc(node)
+        sid = identity('symbol', repr((mid,kind,location.start_line,location.start_column)))
         # Source identifiers are deliberately opaque, including strings used as method names.
         facts.symbols.append(Symbol(id=sid, module_id=mid, name=identity('name', key),
-                                    kind=kind, location=loc(node), parent_id=parent))
+                                    kind=kind, location=location, parent_id=parent))
         return sid
 
     def measure(scope, node, children, decision, nesting, is_scope):

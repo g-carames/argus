@@ -119,11 +119,11 @@ class Analysis:
         candidates=[]
         for fid,records in sorted(self.credential_candidates.items()):
             file=file_by_id[fid]
-            for line,kind,documentation in records:
-                cid=identity('candidate',fid+':'+str(line)+':'+kind)
+            for occurrence,(line,kind,documentation) in enumerate(records):
+                cid=identity('candidate',fid+':'+str(line)+':'+str(occurrence)+':'+kind)
                 eid=identity('evidence',cid)
                 evidence.append(Evidence(id=eid,observation='Credential candidate classification: '+kind+'; validity unverified; literal withheld.',
-                    producer='ARGUS-CRED-001',producer_version='1.3.0',confidence=Confidence.MEDIUM,provenance=Provenance.HEURISTIC,
+                    producer='ARGUS-CRED-001',producer_version='1.4.0',confidence=Confidence.MEDIUM,provenance=Provenance.HEURISTIC,
                     locations=(SourceLocation(path=file.path,start_line=line,start_column=1),)))
                 candidates.append(CredentialCandidate(id=cid,file_id=fid,evidence_ids=(eid,),classification=CandidateClassification(kind),documentation_context=documentation))
         metrics, relationships = [], []
@@ -184,15 +184,19 @@ class Analysis:
         diagnostics.extend(link_diagnostics)
         nodes.extend(link_nodes)
         relationships.extend(link_edges)
-        graph = NetworkXBackend().analyze(Graph(nodes=tuple(sorted(nodes, key=lambda n: n.id)), relationships=tuple(sorted(relationships, key=lambda r: r.id))))
-        for metric in graph.metrics:
-            measured[metric.scope_id, metric.name] = metric.value
+        graph = Graph(nodes=tuple(sorted(nodes, key=lambda n: n.id)), relationships=tuple(sorted(relationships, key=lambda r: r.id)))
         from .workspace import WorkspaceFlow
         WorkspaceFlow(self.facts, self.files, resolver).run()
-        from .observations import project
-        semantic_observations=project(self.facts,file_by_id,graph,evidence)
+        from .relationships import reconcile
+        graph = NetworkXBackend().analyze(reconcile(graph,self.facts,file_by_id,evidence))
+        for metric in graph.metrics:
+            measured[metric.scope_id, metric.name] = metric.value
         from .contextual import investigate, attach, relationship_index
         additions, assessments, semantic_gaps = investigate(self.facts, graph, evidence, file_by_id)
+        from .observations import project
+        semantic_observations=project(self.facts,file_by_id,graph,evidence)
+        for fid,fact in self.facts.items():
+            if fact.semantic: semantic_gaps.setdefault(fid,set()).update(fact.semantic.incomplete)
         controlled={'ARGUS-SEC-004','ARGUS-REL-003','ARGUS-AI-001','ARGUS-AI-002'}
         for fid, hits in additions.items():
             if not semantic_gaps.get(fid):

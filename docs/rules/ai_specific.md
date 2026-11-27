@@ -6,14 +6,14 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 
 ## ARGUS-AI-001 — Model operation without established output limit
 
-- Version: 1.3.0; implementation status: implemented.
+- Version: 1.4.0; implementation status: implemented.
 - Primary category: ai_specific; secondary categories: cost_efficiency.
 - Languages: python, javascript, typescript, jsx, tsx.
 - Required capabilities: ai_specific_analysis.
 - Evaluated parameter: `occurrence_ai_001`; default threshold: `0`; strict greater-than.
 - Methodology: Exact constructed OpenAI/AsyncOpenAI Responses, chat completion, completion and embedding receivers and Anthropic/AsyncAnthropic messages use operations.py metadata. Responses accepts max_output_tokens; chat accepts max_tokens/max_completion_tokens; completions and messages accept max_tokens. Positive numerical limits through bounded aliases/arguments/returns are established. Imported suffix candidates with unresolved receivers remain possible, not genuine SDK recognition. Generic create/complete/generate names alone never establish provider identity.
-- Contextual investigation: Exact constructed OpenAI/AsyncOpenAI Responses, chat completion, completion and embedding receivers and Anthropic/AsyncAnthropic messages use operations.py metadata. Responses accepts max_output_tokens; chat accepts max_tokens/max_completion_tokens; completions and messages accept max_tokens. Positive numerical limits through bounded aliases/arguments/returns are established. Imported suffix candidates with unresolved receivers remain possible, not genuine SDK recognition. Generic create/complete/generate names alone never establish provider identity. Independent typed semantic observations remain available without findings. See docs/milestone-6.1.md.
-- Contextual tests: `tests/test_corrections_m61.py`.
+- Contextual investigation: Exact constructed OpenAI/AsyncOpenAI Responses, chat completion, completion and embedding receivers and Anthropic/AsyncAnthropic messages use operations.py metadata. Responses accepts max_output_tokens; chat accepts max_tokens/max_completion_tokens; completions and messages accept max_tokens. Positive numerical limits through bounded aliases/arguments/returns are established. Imported suffix candidates with unresolved receivers remain possible, not genuine SDK recognition. Generic create/complete/generate names alone never establish provider identity. Independent typed semantic observations remain available without findings. See docs/milestone-6.1.md. Milestone 6.3B separates raised exits from successful returns, preserves source-qualified caller/actual/formal/result linkage, reconciles computed receiver targets before graph assessment, and scopes unsupported-control evidence. Unknown returns and external entries remain uncertain; handlers/finally, predicate refinement and exceptional call continuations remain unsupported.
+- Contextual tests: `tests/integration/test_semantic_cli.py`.
 - Default severity: medium; confidence criteria: medium: exact named syntax observed; runtime binding, exploitation and omitted safeguards unverified.
 - Why it matters: Observed static patterns may expose data, execution boundaries or resources. Cost consequences are potential, not measured expense.
 - Positive example: client.chat.completions.create(model="m", messages=[]).
@@ -25,14 +25,14 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 
 ## ARGUS-AI-002 — Model or embedding call inside loop
 
-- Version: 1.3.0; implementation status: implemented.
+- Version: 1.4.0; implementation status: implemented.
 - Primary category: ai_specific; secondary categories: cost_efficiency.
 - Languages: python, javascript, typescript, jsx, tsx.
 - Required capabilities: ai_specific_analysis.
 - Evaluated parameter: `occurrence_ai_002`; default threshold: `0`; strict greater-than.
 - Methodology: Same operation registry and receiver distinctions as AI-001. Include Responses create. Preserve loop observations and independent unknown-caller contexts; collection bounds do not prove acceptable cost. Bounded graph summaries propagate operation candidates, never validated safeguards.
-- Contextual investigation: Same operation registry and receiver distinctions as AI-001. Include Responses create. Preserve loop observations and independent unknown-caller contexts; collection bounds do not prove acceptable cost. Bounded graph summaries propagate operation candidates, never validated safeguards. Independent typed semantic observations remain available without findings. See docs/milestone-6.1.md.
-- Contextual tests: `tests/test_corrections_m61.py`.
+- Contextual investigation: Same operation registry and receiver distinctions as AI-001. Include Responses create. Preserve loop observations and independent unknown-caller contexts; collection bounds do not prove acceptable cost. Bounded graph summaries propagate operation candidates, never validated safeguards. Independent typed semantic observations remain available without findings. See docs/milestone-6.1.md. Milestone 6.3B separates raised exits from successful returns, preserves source-qualified caller/actual/formal/result linkage, reconciles computed receiver targets before graph assessment, and scopes unsupported-control evidence. Unknown returns and external entries remain uncertain; handlers/finally, predicate refinement and exceptional call continuations remain unsupported.
+- Contextual tests: `tests/integration/test_semantic_cli.py`.
 - Default severity: medium; confidence criteria: medium: exact named syntax observed; runtime binding, exploitation and omitted safeguards unverified.
 - Why it matters: Observed static patterns may expose data, execution boundaries or resources. Cost consequences are potential, not measured expense.
 - Positive example: for item in items: client.embeddings.create(input=item).

@@ -139,7 +139,7 @@ def test_semantic_privacy_and_determinism(tmp_path):
     assert secret not in first and str(tmp_path) not in first
     assert first==JsonReportWriter().render(scan(tmp_path))
     data=json.loads(first)
-    assert data['schema_version']=='1.4.0' and data['semantic_observations']
+    assert data['schema_version']=='1.5.0' and data['semantic_observations']
     assert data['credential_candidates']
 
 

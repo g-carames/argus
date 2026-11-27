@@ -8,12 +8,14 @@ import ast
 
 def lower(parsed):
     data=parsed.content
+    source_lines=data.splitlines()
     gaps={'JavaScript closures, prototypes, getters, promise scheduling and external mutation are unresolved.'}
     def text(n): return data[n.start_byte:n.end_byte].decode() if n else ''
     def field(n,k): return n.child_by_field_name(k)
     def at(n,out):
         out.lineno=n.start_point.row+1
         out.col_offset=n.start_point.column
+        out.argus_column=len(source_lines[n.start_point.row][:n.start_point.column].decode("utf-8",errors="replace"))+1
         return out
     def unknown(n): return at(n,ast.Name(id='@unknown',ctx=ast.Load()))
     def expr(n):

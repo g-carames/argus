@@ -25,6 +25,7 @@ dev = ["pytest>=8"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["installed_cli: builds a wheel and tests the installed CLI in an isolated offline environment"]
 addopts = "--import-mode=importlib -ra"
 
 [project.scripts]

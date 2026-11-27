@@ -11,7 +11,7 @@ from .execution import ExecutionMetadata, ResourceBudget, RootScope
 from .semantic import SemanticObservation
 from .source import Evidence, Module, SourceFile, SourceLocation, Symbol
 
-SCHEMA_VERSION = "1.4.0"
+SCHEMA_VERSION = "1.5.0"
 DISCLAIMER = (
     "Argus is a software architecture analysis and decision-support tool. It does not certify or "
     "guarantee software safety, security, correctness, reliability, regulatory compliance, or AI "
@@ -142,7 +142,9 @@ class ScanResult(Record):
         evidence_ids = {item.id for item in self.evidence}
         require(set(files) == {item.file_id for item in self.coverage.files}, "file coverage mismatch")
         unique(tuple(o.id for o in self.semantic_observations))
+        graph_ids={n.id for n in self.graph.nodes}
         for observation in self.semantic_observations:
+            require(set(observation.candidate_target_ids)<=graph_ids, 'dangling semantic target candidate')
             require(observation.file_id in files, 'observation references missing file')
             require(observation.scope_id in set(files)|set(modules)|set(symbols), 'observation references missing scope')
             require(set(observation.evidence_ids) <= evidence_ids, 'dangling semantic evidence')

@@ -271,3 +271,20 @@ workers beyond existing parser isolation, network acquisition or runtime executi
 were added. Semantic observations are capped at 4,096 per file, including relevant
 call relationships, with explicit exhaustion diagnostics. Existing source-free CFG,
 context, recursion, iteration and module budgets remain applicable.
+
+## Semantic information flow (6.3B)
+
+Extraction owns source-qualified symbol identities. `semantic_contracts.py` defines
+private Point/FactState/ExitKind/Outcomes contracts and stamps existing Site records
+at production. Workspace transfer retains qualified caller contexts, supported
+actual/formal/result bindings and unknown external function entries. Completed
+collections drop interpreter-owner references and retain sanitized syntax only.
+
+A single deterministic reconciliation pass attaches computed static receiver/call
+evidence to syntax relationships (or retains distinct implicit constructor calls).
+NetworkX algorithms and contextual summaries consume that final graph. Contextual
+operation expansion appends to the same site collection used by projection; no
+second copied observation collection exists. Projection follows contextual fact
+production and emits source-free typed records independently of risk findings.
+Public models validate evidence, relationship and candidate-target references.
+See [contracts](data-contract.md) and [validation](milestone-6.3B.md).

@@ -132,3 +132,29 @@ Code**, including scans with no findings. No semantic completeness claim.
   exit 0; this is not an analytical pass or certification.
 - No held-out benchmark was accessed or run. Independent baseline aggregates are
   scope-specific synthetic results; no post-correction benchmark improvement is claimed.
+
+## Milestone 6.3B boundaries
+
+Raised exits no longer join successful returned values. Implicit fallthrough and
+unknown successful returns still make collection bounds unknown. Unsupported
+try/except/finally, with, break/continue and other controls remain incomplete;
+handler/finally effects and exceptional call continuations are not solved. A
+raised-only callee produces no known successful value but its caller's continuation
+is conservatively unknown, not proven unreachable. Predicate refinement, feasibility,
+general heap/alias effects, recursive summaries and comprehensive external method
+entry contexts remain unavailable. Bounds apply only to supported successful-return
+paths under stated assumptions, not arbitrary runtime executions.
+
+Receiver alternatives are retained only when the existing abstract domain computes
+them; reconciliation cannot recover discarded frontend structure. It runs once
+before graph algorithms and contextual investigation; graph-only operation
+summaries remain possible candidates without validated receiver/safeguard effects.
+Unknown external callers are not protected by known callers. Function-local
+unsupported controls no longer coarsen unrelated functions, while module/import,
+resource and unlocalized gaps remain broadly disclosed.
+
+Source-location identities migrate from previous name-based IDs and can change
+when code moves. No persistent comparison engine is implemented. Additional unknown
+and incomplete observations grow reports and can reach the unchanged projection
+limit sooner. Core analysis has no hard memory cap. Richer reports are not broader
+semantic completeness, and no independent benchmark improvement is claimed.

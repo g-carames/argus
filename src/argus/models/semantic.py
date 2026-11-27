@@ -73,6 +73,10 @@ class ObservationKind(StrEnum):
     AUTHENTICATION = 'authentication_registration'
     INVALIDATION = 'safeguard_invalidation'
     CALL = 'call_path'
+    ASSIGNMENT = 'assignment_fact'
+    RECEIVER = 'receiver_resolution'
+    DOMAIN = 'loop_domain'
+    INCOMPLETE = 'incomplete_analysis'
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -91,10 +95,26 @@ class SemanticObservation(Record):
     assumptions: tuple[str, ...] = ()
     limitations: tuple[str, ...] = ()
     relationship_ids: tuple[str, ...] = ()
-    contract_version: str = '1.0.0'
+    context_id: str | None = None
+    callsite_id: str | None = None
+    call_path_ids: tuple[str, ...] = ()
+    formal_id: str | None = None
+    actual_id: str | None = None
+    origin_value_id: str | None = None
+    result_id: str | None = None
+    value_id: str | None = None
+    argument_position: int | None = None
+    binding_kind: str | None = None
+    candidate_target_ids: tuple[str, ...] = ()
+    fact_state: str = 'known'
+    exit_channels: tuple[str, ...] = ()
+    contract_version: str = '1.1.0'
 
     def validate(self):
         require(bool(self.id and self.file_id and self.scope_id and self.conclusion), 'observation identity and conclusion required')
         require(bool(self.evidence_ids), 'observation requires evidence')
         require(self.upper_bound is None or self.upper_bound>=0, 'negative bound')
-        require(self.contract_version == '1.0.0', 'unsupported observation version')
+        require(self.fact_state in ('known','possible','unknown','incomplete'), 'invalid fact state')
+        require(set(self.exit_channels)<= {'normal_fallthrough','returned','raised','unreachable','unsupported_control'}, 'invalid exit channel')
+        require(self.argument_position is None or self.argument_position>=0, 'invalid argument position')
+        require(self.contract_version == '1.1.0', 'unsupported observation version')

@@ -8,6 +8,8 @@ import copy
 import re
 import math
 from dataclasses import dataclass, field, replace
+from .semantic_contracts import Point, Outcomes, ExitKind, FactState, SiteLedger, join_returns
+from ..privacy import identity
 from .parsing import PRIMARY
 from .operations import resolve_operation, MODEL_SUFFIXES, EMBEDDING_SUFFIXES, HTTP_TARGETS
 
@@ -49,15 +51,21 @@ class Value:
     maximum: int | float | None = None
     object_id: tuple = ()
     provenance_truncated: bool = False
+    receiver_options: tuple[str, ...] = ()
+    value_id: str | None = None
+    result_id: str | None = None
 
     def join(self, other):
         if self == other: return self
-        same_facts=replace(self,origins=(),provenance_truncated=False)==replace(other,origins=(),provenance_truncated=False)
+        same_facts=replace(self,origins=(),provenance_truncated=False,value_id=None,result_id=None)==replace(other,origins=(),provenance_truncated=False,value_id=None,result_id=None)
         return Value(state=self.state if same_facts else 'unknown' if 'unknown' in (self.state, other.state) else 'conflicting',
                      size=max(self.size, other.size) if self.size is not None and other.size is not None else None,
                      number=self.number if self.number == other.number else None,
                      taint=self.taint or other.taint, dynamic_sql=self.dynamic_sql or other.dynamic_sql,
                      receiver=self.receiver if self.receiver == other.receiver else None,
+                     value_id=self.value_id if self.value_id==other.value_id else None,
+                     result_id=self.result_id if self.result_id==other.result_id else None,
+                     receiver_options=tuple(sorted(set(self.receiver_options+other.receiver_options+tuple(x for x in (self.receiver,other.receiver) if x)))),
                      constructed=self.constructed and other.constructed,
                      timeout=self.timeout if self.timeout == other.timeout else None,
                      timeout_state=self.timeout_state if self.timeout_state == other.timeout_state else "unknown",
@@ -106,6 +114,22 @@ class Site:
     parameter_binding: bool = False
     sql_identifier: bool = False
     operation_id: str | None = None
+    column: int = 1
+    context_id: str | None = None
+    callsite_id: str | None = None
+    call_path_ids: tuple[str, ...] = ()
+    formal_id: str | None = None
+    actual_id: str | None = None
+    origin_value_id: str | None = None
+    result_id: str | None = None
+    value_id: str | None = None
+    argument_position: int | None = None
+    binding_kind: str | None = None
+    target_id: str | None = None
+    candidate_target_ids: tuple[str, ...] = ()
+    fact_state: FactState = FactState.KNOWN
+    exit_channels: tuple[ExitKind, ...] = ()
+    incomplete: tuple[str, ...] = ()
 
 
 @dataclass
@@ -117,10 +141,19 @@ class SemanticFacts:
     summaries: dict = field(default_factory=dict)
     program: object = None  # Sanitized syntax IR; never report or serialize into reports.
     language: str = 'python'
+    scope_gaps: dict = field(default_factory=dict)
+
+
+def column(node):
+    return getattr(node,'argus_column',getattr(node,'col_offset',0)+1)
 
 
 def collect(file, parsed, facts, budgets=Budgets()):
     if parsed.language == 'python':
+        lines=parsed.content.splitlines()
+        for node in ast.walk(parsed.tree):
+            if hasattr(node,'lineno') and node.lineno<=len(lines):
+                node.argus_column=len(lines[node.lineno-1][:node.col_offset].decode('utf-8',errors='replace'))+1
         return PythonFlow(parsed, facts, budgets).run()
     if parsed.language not in PRIMARY: return SemanticFacts()
     from .javascript import lower
@@ -162,6 +195,11 @@ class PythonFlow:
         self.globals = {}
         self.classes = {}
         self.result = SemanticFacts()
+        self.call_path = ()
+        self.active_call = None
+        self.pending_call = None
+        self.scope_gaps = {}
+        self.result.sites = SiteLedger(self)
         self.aliases, self.functions = {}, {}
         self.counts = dict(contexts=0, iterations=0, paths=0, summary_expansions=0)
         self.gaps = set()
@@ -172,7 +210,7 @@ class PythonFlow:
         self.loop_origins = ()
         self.conditional = False
         self.guards = ()
-        self.owners = {(s.location.start_line,s.location.start_column):s.id for s in facts.symbols}
+        self.owners = {(s.location.start_line,s.location.start_column):s.id for s in facts.symbols if s.kind in ('function','method','class')}
         self.nodes = []
         for n in self.tree.body:
             if isinstance(n,ast.Import):
@@ -185,10 +223,14 @@ class PythonFlow:
                 self.functions.setdefault(n.name,[]).append(n)
         self.provider = any(v.split('.')[0] in ('openai','anthropic','google','langchain','langgraph') for v in self.aliases.values())
 
+    def gap(self, reason):
+        self.gaps.add(reason)
+        self.scope_gaps.setdefault(self.owner,set()).add(reason)
+
     def spend(self, key):
         self.counts[key] += 1
         if self.counts[key] > getattr(self.b,key):
-            self.gaps.add('semantic_'+key+'_limit')
+            self.gap('semantic_'+key+'_limit')
             return False
         return True
 
@@ -198,12 +240,17 @@ class PythonFlow:
         return ''
 
     def evaluate(self,n,env):
-        value=self._evaluate(n,env)
-        if n is not None:
+        previous=self.active_call
+        if isinstance(n,ast.Call) and not getattr(n,'argus_synthetic',False):
+            self.active_call=Point(self.facts.module.id,self.owner,n.lineno,column(n))
+        try: value=self._evaluate(n,env)
+        finally: self.active_call=previous
+        if n is not None and not getattr(n,'argus_synthetic',False):
             origin=(self.facts.module.id,getattr(n,'lineno',1))
             origins=tuple(sorted(set(value.origins+(origin,))))
-            if value.provenance_truncated or len(origins)>32: self.gaps.add('semantic_provenance_limit')
-            value=replace(value,origins=origins[:32],provenance_truncated=value.provenance_truncated or len(origins)>32)
+            if value.provenance_truncated or len(origins)>32: self.gap('semantic_provenance_limit')
+            point=Point(self.facts.module.id,self.owner,getattr(n,'lineno',1),column(n))
+            value=replace(value,value_id=value.value_id or point.key('value'),origins=origins[:32],provenance_truncated=value.provenance_truncated or len(origins)>32)
         return value
 
     def _evaluate(self,n,env):
@@ -228,7 +275,7 @@ class PythonFlow:
             while isinstance(current,ast.Attribute):
                 depth+=1; current=current.value
             if depth>self.b.receiver_depth:
-                self.gaps.add('semantic_receiver_depth_limit'); return UNKNOWN
+                self.gap('semantic_receiver_depth_limit'); return UNKNOWN
             base = self.evaluate(n.value, env)
             if base.receiver and base.receiver.startswith('module:') and self.workspace:
                 binding=self.workspace.export(base.receiver[7:],n.attr,())
@@ -237,6 +284,7 @@ class PythonFlow:
                     self.workspace.initialize(mid)
                     other=self.workspace.flows[mid]
                     if key in other.functions: return Value('definite',receiver='function@'+mid+':'+key)
+                    if key in other.classes: return Value('definite',receiver='constructor@'+mid+':'+key)
                     return other.globals.get(key,UNKNOWN)
                 return UNKNOWN
             direct = dict(base.attributes).get(n.attr,env.get(self.raw_name(n)))
@@ -280,7 +328,7 @@ class PythonFlow:
         if isinstance(n,ast.Await):
             value=self.evaluate(n.value,env)
             self.invalidate(env,n.lineno)
-            self.gaps.add('semantic_async_scheduling_unresolved')
+            self.gap('semantic_async_scheduling_unresolved')
             return replace(value,size=None,attributes=(),timeout=None,timeout_state='unknown')
         if isinstance(n,ast.IfExp):
             if not self.spend('paths'): return UNKNOWN
@@ -302,7 +350,8 @@ class PythonFlow:
         for size in self.loop_bounds:
             if size is None: bound=None; break
             bound=bound*size
-        self.result.sites.append(Site(n.lineno,self.owner,'call',len(self.loop_bounds),bound if self.loop_bounds else None,context=self.context,conditional=self.conditional))
+        if not getattr(n,'argus_synthetic',False):
+            self.result.sites.append(Site(n.lineno,self.owner,'call',len(self.loop_bounds),bound if self.loop_bounds else None,context=self.context,conditional=self.conditional,column=column(n)))
         args=[self.evaluate(a,env) for a in n.args]
         kwargs={k.arg:self.evaluate(k.value,env) for k in n.keywords}
         if self.language=='python' and target in ('range','builtins.range') and target not in env and target not in self.functions and not kwargs and 1<=len(args)<=3 and all(type(v.number) is int for v in args):
@@ -340,6 +389,9 @@ class PythonFlow:
             return Value('possible',minimum=max(lowers) if target=='max' and lowers else None,
                          maximum=min(uppers) if target=='min' and uppers else None,
                          taint=any(v.taint for v in args))
+        if function_value.receiver and function_value.receiver.startswith('constructor@') and self.workspace:
+            mid,name=function_value.receiver[12:].split(':',1)
+            return self.workspace.invoke(self,(mid,name),args,kwargs,n.lineno)
         if function_value.receiver and function_value.receiver.startswith('function@') and self.workspace:
             mid,name=function_value.receiver[9:].split(':',1)
             result=self.workspace.invoke(self,(mid,name),args,kwargs,n.lineno)
@@ -351,7 +403,7 @@ class PythonFlow:
                 result=self.invoke(self.functions[name][0],args,kwargs,env,n.lineno)
                 self.invalidate(env,n.lineno)
                 return result
-        if isinstance(n.func, ast.Name) and n.func.id in self.imported and self.workspace:
+        if isinstance(n.func, ast.Name) and n.func.id in self.imported and n.func.id not in env and self.workspace:
             binding = self.workspace.bindings.get((self.facts.module.id, n.func.id))
             if binding:
                 result=self.workspace.invoke(self, binding, args, kwargs, n.lineno)
@@ -377,8 +429,8 @@ class PythonFlow:
             classes=self.classes[n.func.id]
             if len(classes)!=1: return UNKNOWN
             cls=classes[0]
-            if cls.bases: self.gaps.add('semantic_inherited_receiver_unresolved')
-            value=Value('definite',receiver='class:'+n.func.id,object_id=(self.facts.module.id,n.lineno,self.context))
+            if cls.bases: self.gap('semantic_inherited_receiver_unresolved')
+            value=Value('definite',receiver='class:'+n.func.id,object_id=((self.pending_call or self.active_call or Point(self.facts.module.id,self.owner,n.lineno)).key('allocation'),self.call_path))
             init=next((x for x in cls.body if isinstance(x,(ast.FunctionDef,ast.AsyncFunctionDef)) and x.name=='__init__'),None)
             if init:
                 # Constructor attributes are copied to the returned receiver's local identity.
@@ -387,6 +439,13 @@ class PythonFlow:
                 value=replace(value,attributes=tuple(sorted((key[5:],v) for key,v in attrs.items() if key.startswith('self.'))))
             if self.workspace: value=replace(value,receiver='class@'+self.facts.module.id+':'+n.func.id)
             return value
+        if not receiver.receiver and receiver.receiver_options and self.workspace and isinstance(n.func,ast.Attribute):
+            candidates=tuple(sorted({target for option in receiver.receiver_options
+                for target in self.workspace.method_targets(option,n.func.attr)}))
+            if candidates:
+                self.result.sites.append(Site(n.lineno,self.owner,'receiver_resolution',
+                    column=column(n),candidate_target_ids=candidates,
+                    fact_state=FactState.POSSIBLE))
         if receiver.receiver and receiver.receiver.startswith('class@') and self.workspace:
             result=self.workspace.method(self,receiver,n.func.attr,args,kwargs,n.lineno)
             self.invalidate_receiver(receiver,env)
@@ -406,11 +465,11 @@ class PythonFlow:
             self.invalidate(env,n.lineno)
             return result
         if isinstance(n.func,ast.Attribute) and not receiver.receiver and self.raw_name(n.func).startswith('self.'):
-            self.gaps.add('semantic_unresolved_instance_receiver')
+            self.gap('semantic_unresolved_instance_receiver')
         query=target.rsplit('.',1)[-1] in ('execute','executemany','query')
         sdk_operation=resolve_operation(target) if receiver.constructed or function_value.constructed else None
         if target.startswith('known_mock.') and target.endswith(MODEL_SUFFIXES+EMBEDDING_SUFFIXES):
-            self.result.sites.append(Site(n.lineno,self.owner,'mock_operation',context=self.context))
+            self.result.sites.append(Site(n.lineno,self.owner,'mock_operation',context=self.context,column=column(n)))
         possible_receiver=self.provider and (receiver.receiver is None or not receiver.constructed and target.startswith(('openai.','anthropic.')))
         model=bool(sdk_operation and sdk_operation.kind=='model') or possible_receiver and target.endswith(MODEL_SUFFIXES)
         embedding=bool(sdk_operation and sdk_operation.kind=='embedding') or possible_receiver and target.endswith(EMBEDDING_SUFFIXES)
@@ -439,7 +498,7 @@ class PythonFlow:
                 timeout_state=timeout_state if request else 'unknown',sql_value=('untrusted_string' if args[0].taint and args[0].sql_value=='unknown' else args[0].sql_value) if args else 'unknown',
                 sql_identifier=bool(args and args[0].sql_identifier),
                 parameter_binding=query and len(args)>1 and receiver.receiver in ('sqlite3.connect.cursor','psycopg.connect.cursor','psycopg2.connect.cursor'),
-                operation_id=sdk_operation.receiver+'.'+sdk_operation.suffix if sdk_operation else None))
+                operation_id=sdk_operation.receiver+'.'+sdk_operation.suffix if sdk_operation else None,column=column(n)))
             self.result.summaries.setdefault(self.owner,set()).add(op)
         # Unknown calls may mutate any aliased collection. Invalidate all bounds,
         # because alias identities are intentionally not modeled in this subset.
@@ -469,10 +528,10 @@ class PythonFlow:
 
     def invoke(self,fn,args,kwargs,env,line,capture=None,external=False):
         if fn.lineno in self.active or len(self.active)>=self.b.depth:
-            self.gaps.add('semantic_recursion_or_depth_limit'); return UNKNOWN
+            self.gap('semantic_recursion_or_depth_limit'); return UNKNOWN
         if not self.spend('contexts') or not self.spend('summary_expansions'): return UNKNOWN
         if fn.args.vararg or fn.args.kwarg or None in kwargs:
-            self.gaps.add('semantic_dynamic_function_binding'); return UNKNOWN
+            self.gap('semantic_dynamic_function_binding'); return UNKNOWN
         from .safeguards import function_guards
         guards=function_guards(fn,self.aliases,self.globals)
         def route_decorator(dec):
@@ -482,8 +541,15 @@ class PythonFlow:
         route=any(route_decorator(d) for d in fn.decorator_list)
         dynamic_decorator=bool(fn.decorator_list) and not guards and not route
         if dynamic_decorator:
-            self.gaps.add('semantic_decorated_function_binding_unverified')
+            self.gap('semantic_decorated_function_binding_unverified')
         params=fn.args.posonlyargs+fn.args.args
+        allowed={p.arg for p in fn.args.args+fn.args.kwonlyargs}
+        supplied={p.arg for p in params[:len(args)]}
+        required={p.arg for p in params[:len(params)-len(fn.args.defaults)]} | {p.arg for p,d in zip(fn.args.kwonlyargs,fn.args.kw_defaults) if d is None}
+        missing=bool(required-supplied-set(kwargs))
+        if len(args)>len(params) or any(k not in allowed or k in supplied for k in kwargs) or missing and self.language=='python':
+            self.gap('semantic_invalid_or_unsupported_argument_binding')
+            return UNKNOWN
         local=dict(self.globals)
         local.update(env if capture is not None or any(k.startswith('self.') for k in env) else {})
         for p in params+fn.args.kwonlyargs: local.pop(p.arg,None)
@@ -498,25 +564,54 @@ class PythonFlow:
                 if p.annotation and self.name(p.annotation)=='fastapi.Request': local[p.arg]=replace(local[p.arg],taint=True)
         if external and route:
             for p in params+fn.args.kwonlyargs: local[p.arg]=replace(local[p.arg],taint=True)
-        saved=(self.owner,self.context,self.active,self.loop_bounds,self.conditional,self.guards)
+        saved=(self.owner,self.context,self.active,self.loop_bounds,self.conditional,self.guards,self.call_path)
+        call=self.pending_call or self.active_call or Point(self.facts.module.id,self.owner,line)
+        self.pending_call=None
+        target=self.owners.get((fn.lineno,column(fn)),self.owner)
+        callsite=call.key('callsite')
+        context_path=self.call_path+(identity('external_entry',target) if external else callsite,)
+        result_id=identity('result',repr((target,context_path)))
+        if not external:
+            # The caller owns this record even when the callee is in another file.
+            producer=self.workspace.flows.get(call.module_id,self) if self.workspace else self
+            producer.result.sites.append(Site(call.line,call.owner_id,'receiver_resolution',column=call.column,
+                callsite_id=callsite,target_id=target,candidate_target_ids=(target,),
+                context_id=identity('context',repr((call.owner_id,context_path[:-1]))),
+                call_path_ids=context_path[:-1]))
+        self.call_path=context_path
         self.guards=guards
-        self.owner=self.owners.get((fn.lineno,fn.col_offset+1),self.owner)
-        self.context=self.context+(line,)
+        self.owner=self.owners.get((fn.lineno,column(fn)),self.owner)
+        self.context=self.context+((call.line,) if not external and call.module_id==self.facts.module.id else ())
         self.active=self.active+(fn.lineno,)
         # Caller loop domains remain relevant to callee operations.
-        for v in args+list(kwargs.values()):
-            if v.size is not None:
-                self.result.sites.append(Site(fn.lineno,self.owner,'argument_bound',upper_bound=v.size,context=self.context))
+        for index,p in enumerate(params+fn.args.kwonlyargs):
+            v=local.get(p.arg,UNKNOWN)
+            positional=index<len(args) and index<len(params)
+            binding='external_unknown' if external else 'positional' if positional else 'keyword' if p.arg in kwargs else 'default'
+            formal=identity('formal',repr((target,index)))
+            actual=identity('actual',repr((callsite,index,binding,context_path)))
+            self.result.sites.append(Site(fn.lineno,self.owner,'argument_bound',upper_bound=v.size,column=column(fn),
+                context=self.context,origins=v.origins,formal_id=formal,actual_id=actual,result_id=result_id,origin_value_id=v.value_id,
+                callsite_id=None if external else callsite,argument_position=index,binding_kind=binding,
+                value_id=actual,fact_state=FactState.KNOWN if v.size is not None else FactState.UNKNOWN))
         if guards:
             self.result.sites.append(Site(fn.lineno,self.owner,'authentication',context=self.context,safeguards=guards))
-        value,_=self.block(fn.body,local)
-        if value.size is not None:
-            self.result.sites.append(Site(fn.lineno,self.owner,'return_bound',upper_bound=value.size,context=self.context))
+        outcome=self.block(fn.body,local)
+        value=outcome.returned
+        if outcome.normal: value=join_returns(value,UNKNOWN)
+        if outcome.incomplete: value=UNKNOWN
+        # Raised-only execution has no successful result; the expression boundary
+        # remains unknown until the next milestone models exceptional call edges.
+        if value is None: value=UNKNOWN
+        self.result.sites.append(Site(fn.lineno,self.owner,'return_bound',upper_bound=value.size,context=self.context,column=column(fn),
+            origins=value.origins,result_id=result_id,value_id=result_id,callsite_id=None if external else callsite,
+            fact_state=FactState.INCOMPLETE if outcome.incomplete else FactState.KNOWN if value.size is not None else FactState.UNKNOWN,
+            exit_channels=outcome.channels,incomplete=tuple(sorted(self.scope_gaps.get(self.owner,())))))
         if dynamic_decorator:
             value=Value(taint=value.taint or any(v.taint for v in args+list(kwargs.values())),dynamic_sql=value.dynamic_sql,sensitive=value.sensitive)
         if capture is not None: capture.update(local)
-        self.owner,self.context,self.active,self.loop_bounds,self.conditional,self.guards=saved
-        return value
+        self.owner,self.context,self.active,self.loop_bounds,self.conditional,self.guards,self.call_path=saved
+        return replace(value,result_id=result_id,value_id=result_id)
 
     def counter_bound(self,node,env):
         """Only a local monotonic counter with one unconditional final increment."""
@@ -535,15 +630,24 @@ class PythonFlow:
 
     def block(self,body,env):
         pending=None
-        def returned(value): return value if pending is None else pending.join(value)
+        raised=False
+        incomplete=False
+        def outcome(normal=True, value=None, exceptional=False):
+            return Outcomes(normal,join_returns(pending,value),raised or exceptional,incomplete)
         for n in body:
-            if not self.spend('iterations'): return UNKNOWN,False
+            if not self.spend('iterations'): return Outcomes(True,pending,raised,True)
             if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef,ast.ClassDef,ast.Import,ast.ImportFrom)): continue
             if isinstance(n,(ast.Assign,ast.AnnAssign)):
                 value=self.evaluate(n.value,env)
                 targets=n.targets if isinstance(n,ast.Assign) else [n.target]
                 for t in targets:
-                    if isinstance(t,ast.Name): env[t.id]=value
+                    if isinstance(t,ast.Name):
+                        point=Point(self.facts.module.id,self.owner,n.lineno,column(t))
+                        env[t.id]=replace(value,value_id=point.key('value'))
+                        self.result.sites.append(Site(n.lineno,self.owner,'assignment',upper_bound=value.size,
+                            result_id=value.result_id,origin_value_id=value.value_id,
+                            column=point.column,origins=value.origins,value_id=point.key('value'),
+                            fact_state=FactState.KNOWN if value.size is not None else FactState.UNKNOWN))
                     elif isinstance(t,ast.Attribute) and self.raw_name(t).startswith('self.'):
                         env[self.raw_name(t)]=value
                     else:
@@ -553,20 +657,23 @@ class PythonFlow:
                 for k,v in list(env.items()):
                     if v.size is not None or isinstance(n.target,ast.Name) and k==n.target.id: env[k]=UNKNOWN
             elif isinstance(n,ast.Expr): self.evaluate(n.value,env)
-            elif isinstance(n,ast.Return): return returned(self.evaluate(n.value,env)),True
-            elif isinstance(n,ast.Raise): self.evaluate(n.exc,env); return returned(UNKNOWN),True
+            elif isinstance(n,ast.Return): return outcome(False,self.evaluate(n.value,env))
+            elif isinstance(n,ast.Raise):
+                self.evaluate(n.exc,env)
+                return outcome(False,exceptional=True)
             elif isinstance(n,ast.If):
                 self.evaluate(n.test,env)
-                if not self.spend('paths'): return UNKNOWN,False
+                if not self.spend('paths'): return Outcomes(True,pending,raised,True)
                 left,right=env.copy(),env.copy()
                 old=self.conditional; self.conditional=True
-                lv,lr=self.block(n.body,left); rv,rr=self.block(n.orelse,right)
+                lo=self.block(n.body,left); ro=self.block(n.orelse,right)
+                raised=raised or lo.raised or ro.raised
+                incomplete=incomplete or lo.incomplete or ro.incomplete
+                pending=join_returns(pending,join_returns(lo.returned,ro.returned))
                 self.conditional=old
                 for k in left.keys()|right.keys():
-                    env[k]=right.get(k,UNKNOWN) if lr and not rr else left.get(k,UNKNOWN) if rr and not lr else left.get(k,UNKNOWN).join(right.get(k,UNKNOWN))
-                if lr and rr: return returned(lv.join(rv)),True
-                if lr: pending=returned(lv)
-                elif rr: pending=returned(rv)
+                    env[k]=right.get(k,UNKNOWN) if not lo.normal and ro.normal else left.get(k,UNKNOWN) if not ro.normal and lo.normal else left.get(k,UNKNOWN).join(right.get(k,UNKNOWN))
+                if not lo.normal and not ro.normal: return outcome(False)
             elif isinstance(n,(ast.For,ast.AsyncFor,ast.While)):
                 domain=self.evaluate(n.iter,env) if isinstance(n,(ast.For,ast.AsyncFor)) else UNKNOWN
                 if isinstance(n,ast.While):
@@ -594,25 +701,37 @@ class PythonFlow:
                 mutates=any(isinstance(x,ast.Call) and may_mutate(x) for statement in n.body for x in ast.walk(statement))
                 if mutates or isinstance(n,ast.AsyncFor) or any(isinstance(x,ast.Await) for stmt in n.body for x in ast.walk(stmt)):
                     self.loop_bounds=old+(None,)
+                self.result.sites.append(Site(n.lineno,self.owner,'loop_domain',column=column(n),
+                    loops=len(self.loop_bounds),upper_bound=self.loop_bounds[-1],origins=domain.origins,
+                    fact_state=FactState.KNOWN if self.loop_bounds[-1] is not None else FactState.UNKNOWN))
                 for k in stores: local[k]=UNKNOWN
                 if isinstance(n,(ast.For,ast.AsyncFor)) and isinstance(n.target,ast.Name): local[n.target.id]=Value(taint=domain.taint)
-                loop_return,loop_exits=self.block(n.body,local)
+                loop_outcome=self.block(n.body,local)
+                raised=raised or loop_outcome.raised
+                incomplete=incomplete or loop_outcome.incomplete
                 if any(isinstance(x,ast.Return) for statement in n.body for x in ast.walk(statement)):
                     # A loop may execute zero times. Retain possible return values
                     # without proving iteration feasibility or dropping taint.
-                    pending=returned(loop_return)
+                    pending=join_returns(pending,loop_outcome.returned)
                 self.loop_bounds=old
                 self.loop_origins=old_origins
                 for k in env.keys()|local.keys(): env[k]=env.get(k,UNKNOWN).join(local.get(k,UNKNOWN))
-                self.block(n.orelse,env)
+                alternative=self.block(n.orelse,env)
+                pending=join_returns(pending,alternative.returned)
+                raised=raised or alternative.raised
+                incomplete=incomplete or alternative.incomplete
+                if not alternative.normal: return outcome(False)
             else:
                 # Do not infer enforcement through unmodeled try/with/match,
                 # comprehensions, break/continue or destructuring semantics.
-                self.gaps.add('semantic_unsupported_control_or_statement')
+                self.gap('semantic_unsupported_control_or_statement')
+                incomplete=True
+                # Unsupported effects/handlers may override successful exits.
+                # Preserve the gap without inventing an observed return channel.
                 for child in ast.iter_child_nodes(n):
                     if isinstance(child,ast.expr): self.evaluate(child,env)
                 for k in list(env): env[k]=UNKNOWN
-        return returned(UNKNOWN),False
+        return outcome()
 
     def run(self):
         # A bounded structured CFG for straight-line/if/for/while/return blocks.
@@ -622,7 +741,7 @@ class PythonFlow:
             for n in reversed(body):
                 if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef,ast.ClassDef)): continue
                 if len(self.nodes)>=self.b.cfg_nodes:
-                    self.gaps.add('semantic_cfg_nodes_limit'); return nexts
+                    self.gap('semantic_cfg_nodes_limit'); return nexts
                 i=len(self.nodes); self.nodes.append(FlowNode(i,n.lineno,type(n).__name__))
                 if isinstance(n,ast.If): successors=cfg(n.body,nexts)+cfg(n.orelse,nexts)
                 elif isinstance(n,(ast.For,ast.AsyncFor,ast.While)): successors=cfg(n.body,(i,))+nexts
@@ -645,10 +764,12 @@ class PythonFlow:
                 # of callers. Never let one constrained caller protect another.
                 self.invoke(fn,[UNKNOWN for _ in fn.args.posonlyargs+fn.args.args],{p.arg:UNKNOWN for p in fn.args.kwonlyargs}, {},fn.lineno,external=True)
         if sum(1 for _ in ast.walk(self.tree))>self.b.cfg_nodes*4:
-            self.gaps.add('semantic_intermediate_representation_limit')
+            self.gap('semantic_intermediate_representation_limit')
         else:
             self.result.program=sanitized(self.tree)
+        self.result.sites=list(self.result.sites)
         self.result.language=self.language
         self.result.cfg=tuple(self.nodes)
         self.result.incomplete=tuple(sorted(self.gaps))
+        self.result.scope_gaps={k:tuple(sorted(v)) for k,v in self.scope_gaps.items()}
         return self.result

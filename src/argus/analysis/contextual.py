@@ -1,6 +1,7 @@
 """Assess retained observations using source-free semantic facts and resolved calls."""
 from dataclasses import replace
 from .semantic import Site
+from .semantic_contracts import FactState
 from ..models.analysis import Resolution, RelationshipKind
 from ..models.base import Confidence, Provenance, Severity
 from ..models.semantic import Assessment, Safeguard, MitigationState as M
@@ -20,7 +21,7 @@ def investigate(facts_by_file, graph, evidence, files):
     No summary removes or resolves an original risk observation.
     """
     module_files={f.module.id:files[fid] for fid,f in facts_by_file.items()}
-    sites={fid:list(f.semantic.sites) for fid,f in facts_by_file.items() if f.semantic}
+    sites={fid:f.semantic.sites for fid,f in facts_by_file.items() if f.semantic}
     summaries={owner:set(ops) for f in facts_by_file.values() if f.semantic for owner,ops in f.semantic.summaries.items()}
     locations={e.id:e.locations for e in evidence}
     calls=[r for r in graph.relationships if r.kind==RelationshipKind.CALL]
@@ -71,7 +72,7 @@ def investigate(facts_by_file, graph, evidence, files):
                             gaps[fid].add('semantic_propagated_sites_limit')
                             continue
                         propagated+=1
-                        sites[fid].append(replace(site,operation=op,limit=False))
+                        sites[fid].append(replace(site,operation=op,limit=False,receiver_resolved=False,fact_state=FactState.POSSIBLE))
     for fid,entries in sites.items():
         grouped={}
         for site in entries:
@@ -91,10 +92,17 @@ def investigate(facts_by_file, graph, evidence, files):
             bounded=[s for s in contexts if s.upper_bound is not None] if key in ('ARGUS-AI-002','ARGUS-COST-001') else []
             limited=[s for s in contexts if s.limit] if key in ('ARGUS-REL-003','ARGUS-AI-001') else []
             framework=tuple(sorted({g for s in contexts for g in s.safeguards}))
+            scope_gaps=facts_by_file[fid].semantic.scope_gaps
+            affected=set().union(*(set(scope_gaps.get(s.owner,())) | set(s.incomplete) for s in contexts))
+            # Module-wide resource/import/lowering gaps still apply everywhere.
+            localized=set().union(*(set(v) for v in scope_gaps.values())) if scope_gaps else set()
+            affected.update(gaps[fid]-localized)
+            affected.update(scope_gaps.get(facts_by_file[fid].module.id,()))
+            affected.update(g for g in gaps[fid] if 'limit' in g)
             # De-duplicate graph and interpreter contexts conservatively.
-            applicable=bool(bounded) and len(bounded)==len(contexts) and not gaps[fid]
+            applicable=bool(bounded) and len(bounded)==len(contexts) and not affected
             configured=any(s.configuration_observed for s in contexts)
-            state=M.ESTABLISHED if applicable or limited and len(limited)==len(contexts) and not gaps[fid] else M.PARTIAL if bounded or limited else M.UNVERIFIED if configured else M.INCOMPLETE if gaps[fid] else M.NONE
+            state=M.ESTABLISHED if applicable or limited and len(limited)==len(contexts) and not affected else M.PARTIAL if bounded or limited else M.UNVERIFIED if configured else M.INCOMPLETE if affected else M.NONE
             if not bounded and not limited and not configured and any(s.operation in ('model','embedding') and not s.receiver_resolved for s in contexts): state=M.UNDETERMINED
             if key in ('ARGUS-SEC-001','ARGUS-SEC-004'): state=M.UNSUPPORTED
             loc=SourceLocation(path=files[fid].path,start_line=line,start_column=1)
@@ -130,7 +138,7 @@ def investigate(facts_by_file, graph, evidence, files):
                 assumptions=('Static call bindings and standard Python builtins retain their ordinary meanings; no external monkey patching.',
                     'Recognized external operation candidates do not mutate the iteration domain; receiver identity and runtime behavior remain unverified.'),
                 remaining_risk='Bounded iteration can still incur significant cost or latency; unconstrained callers and provider behavior remain unverified.',
-                limitations=LIMITATIONS+tuple(sorted(gaps[fid])),
+                limitations=LIMITATIONS+tuple(sorted(affected)),
                 severity_adjustment=None)
     return additions,assessments,gaps
 

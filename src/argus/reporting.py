@@ -129,6 +129,8 @@ class JsonReportWriter:
                 "Retry/backoff policy applicability and shared/global execution budgets (simple local counter bounds only).",
                 "Database query-limit API enforcement; general validation/redaction effectiveness.",
                 "Dynamic dispatch, mutable global invariants, closures, JS prototypes/getters and asynchronous scheduling.",
+                "Exception handlers/finally effects, exceptional call continuations and comprehensive predicate refinement; raised-only calls cannot prove continuation reachability.",
+                "Unknown external method/constructor entry contexts are not comprehensively enumerated; resolved in-repository calls do not establish all possible callers.",
             ],
             "semantic_analysis_gaps": to_data(tuple(d for d in result.diagnostics if d.code == 'semantic_analysis_incomplete')),
             "unsupported_languages_and_formats": [unsupported[key] for key in sorted(unsupported)],

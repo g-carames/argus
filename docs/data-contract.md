@@ -1,3 +1,42 @@
+# Milestone 6.3B contract revision: 1.5.0
+
+Semantic observations use contract `1.1.0`. Additive fields preserve `context_id`,
+`callsite_id`, qualified `call_path_ids`, `formal_id`, `actual_id`, `result_id`,
+`value_id`, `origin_value_id`, `argument_position`, `binding_kind`,
+`candidate_target_ids`, `fact_state` and `exit_channels`. Null means unavailable,
+not zero or proof of absence. Existing bound/argument/return kinds also carry
+unknown facts; inspect certainty and nullable upper_bound. Unknown cardinality
+never establishes infinite execution.
+
+New kinds: `assignment_fact`, `receiver_resolution`, `loop_domain`,
+`incomplete_analysis`. Invocation projection uses the typed `invocation` relationship
+kind and includes unresolved syntax. Relationship additions are `callsite_id`,
+`context_ids`, and `candidate_target_ids`. Candidates reference existing graph
+nodes; ambiguous alternatives have no definite target. An aggregate call-path
+observation references the relationship whose context_ids identify its scoped
+static resolutions. It does not claim universal runtime dispatch.
+
+Symbols now use module/kind/line/Unicode-column identity instead of lexical names.
+Renaming at a fixed location preserves symbol IDs; moving definitions can change
+them. Existing symbol and derived relationship/structural-finding IDs therefore
+migrate in this release. This is not an implemented cross-version comparison or
+remediation engine. Pattern finding IDs keep their existing generation policy.
+
+Callsites use module, lexical owner and source coordinates; formal IDs use function
+and parameter position; actual IDs use callsite, parameter position, binding kind
+and call path; result IDs use function and call path. Value identities derive from
+source locations, never literal or credential contents. External function entries
+have distinct unknown-entry path IDs and no fabricated caller callsite. Legacy
+`context_lines` is same-file only; use qualified callsite/path IDs and relationship
+and value evidence locations for cross-file provenance. Constructor transfer nodes
+are private implementation details and never create invented callee syntax.
+
+The private contracts and evidence flow are documented in
+[Milestone 6.3B](milestone-6.3B.md). No raw syntax, source strings, credential values,
+or value-derived credential fingerprints are added to the public interface.
+
+---
+
 # Milestone 5 additive contract revision: 1.3.0
 
 `Finding.assessment` is optional for compatibility. It contains initial_pattern,

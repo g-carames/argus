@@ -32,8 +32,8 @@ Pattern findings use rule/file identity and ordinal among matched lines, never s
 values or raw line numbers. Unrelated line insertions preserve IDs, but adding/removing
 an earlier occurrence can shift ordinals. These are not credential identities or a
 persistent comparison/remediation engine.
-Symbol IDs use hashed lexical scope/name/kind and same-name ordinal; duplicate or
-anonymous-scope insertions and renames may change identity. Export marker identities
+Symbol IDs use module/kind/line/Unicode-column coordinates as of 6.3B; moves
+can change identity while same-location renames preserve it. Export marker identities
 currently include offsets. No baseline comparison or resolution tracking is implemented.
 
 Rule coverage units are inventoried primary-language files (including excluded and
@@ -73,3 +73,9 @@ Milestone 6.1 updates AI-001/002, REL-003, SEC-004 and CRED-001 to version 1.3.0
 The central registry and generated category pages describe the corrective scope;
 [release validation](../milestone-6.1.md) separates regression tests from independent
 evaluation. Observations do not create findings or alter disabled-rule behavior.
+
+Milestone 6.3B versions AI-001/002, COST-001, REL-003, SEC-001/004 and
+CRED-001 at 1.4.0. Rules and severity thresholds are unchanged. Exit-channel,
+identity, projection and credential-precedence corrections are documented in
+[the validation report](../milestone-6.3B.md); the installed-CLI tier requires exact
+public linkage and uncertainty evidence, alongside the retained unit tests.

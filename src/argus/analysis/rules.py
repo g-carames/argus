@@ -148,6 +148,13 @@ REGISTRY=tuple(replace(r,version='1.3.0',name=CORRECTIONS[r.id][0],methodology=C
     contextual_tests='tests/test_corrections_m61.py',
     limitations='Bounded static scope only; runtime behavior, arbitrary dispatch and general safeguards remain unverified. Exhausted budgets remain disclosed. SQL constant/integer refinement is Python-specific; JS-family coercion remains unresolved. No independent reevaluation metrics are claimed.')
     if r.id in CORRECTIONS else r for r in REGISTRY)
+# Information-preservation correction: no new rules, parameters or severities.
+SEMANTIC_CORRECTIONS={'ARGUS-AI-001','ARGUS-AI-002','ARGUS-COST-001','ARGUS-REL-003','ARGUS-SEC-004','ARGUS-SEC-001','ARGUS-CRED-001'}
+REGISTRY=tuple(replace(r,version='1.4.0',
+    methodology=(r.methodology+' Occurrence-level recognized token spans take precedence over enclosing placeholder hints; exact placeholders alone remain filtered.' if r.id=='ARGUS-CRED-001' else r.methodology),
+    contextual_analysis=(r.contextual_analysis+' Milestone 6.3B separates raised exits from successful returns, preserves source-qualified caller/actual/formal/result linkage, reconciles computed receiver targets before graph assessment, and scopes unsupported-control evidence. Unknown returns and external entries remain uncertain; handlers/finally, predicate refinement and exceptional call continuations remain unsupported.'),
+    contextual_tests='tests/integration/test_semantic_cli.py')
+    if r.id in SEMANTIC_CORRECTIONS else r for r in REGISTRY)
 BY_ID = {r.id: r for r in REGISTRY}
 
 

@@ -26,21 +26,27 @@ def credential_candidates(content, path=""):
     generic=re.compile(r"\b(?:const|let|var)\s+key\s*=\s*[\"']([^\"'\r\n]{16,})[\"']")
     records=[]
     for line,value in enumerate(text.splitlines(),1):
-        candidates=[m[1] for m in ASSIGNMENT.finditer(value)]
+        candidates=[(m.start(1),m.end(1),m[1]) for m in ASSIGNMENT.finditer(value)]
         env=re.fullmatch(r'\s*[A-Za-z_][A-Za-z0-9_]*(?:KEY|SECRET|TOKEN|PASSWORD)\s*=\s*([^\s#\"\']{8,})\s*',value) if path.rsplit('/',1)[-1].startswith('.env') else None
-        if env: candidates.append(env[1])
+        if env: candidates.append((env.start(1),env.end(1),env[1]))
         if browser_context:
-            candidates.extend(m[1] for m in generic.finditer(value) if re.search(r'(?i)(?:secret|api[-_]?key|access[-_]?token|browser[-_]?key)',m[1]))
+            candidates.extend((m.start(1),m.end(1),m[1]) for m in generic.finditer(value) if re.search(r'(?i)(?:secret|api[-_]?key|access[-_]?token|browser[-_]?key)',m[1]))
         recognized=list(TOKEN.finditer(value))
-        classes=set()
-        for candidate in candidates:
-            classes.add('obvious_placeholder' if placeholder(candidate) else 'recognized_pattern' if TOKEN.search(candidate) else 'uncertain_candidate' if len(candidate)<12 else 'plausible_assignment')
-        # Token matches inside an explicit placeholder do not override its classification.
+        occurrences={}
+        for start,end,candidate in candidates:
+            # A placeholder is evidence about this occurrence. Independently
+            # recognized spans are retained below even inside an enclosing hint.
+            kind='obvious_placeholder' if placeholder(candidate) else 'uncertain_candidate' if len(candidate)<12 else 'plausible_assignment'
+            if not any(start<=m.start() and m.end()<=end for m in recognized):
+                occurrences[start,end]=kind
+            elif kind=='obvious_placeholder':
+                occurrences[start,end]=kind
         for match in recognized:
-            if not any(match[0] in candidate and placeholder(candidate) for candidate in candidates):
-                classes.add('recognized_pattern')
-        if re.search(r'-----BEGIN (?:RSA |EC |OPENSSH |DSA |ENCRYPTED )?PRIVATE KEY-----',value): classes.add('recognized_pattern')
-        for kind in sorted(classes): records.append((line,kind,documentation))
+            occurrences[match.start(),match.end()]='recognized_pattern'
+        for match in re.finditer(r'-----BEGIN (?:RSA |EC |OPENSSH |DSA |ENCRYPTED )?PRIVATE KEY-----',value):
+            occurrences[match.start(),match.end()]='recognized_pattern'
+        for (start,end),kind in sorted(occurrences.items()):
+            records.append((line,kind,documentation))
     return records
 
 

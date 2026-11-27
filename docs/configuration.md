@@ -125,3 +125,19 @@ coverage, grouped diagnostics and **Not Reviewed Portions of the Code**; exit 0 
 not complete analysis or a safety claim. File statuses may remain failed where
 resource exhaustion prevented extraction, while the diagnostic class identifies
 resource exhaustion and the usable-report exit remains 0.
+
+## Milestone 6.3B compatibility
+
+No dependencies, thresholds, rule IDs, configuration keys or CLI options changed.
+Seven existing rules use version 1.4.0 (AI-001/002, COST-001, REL-003, SEC-001/004,
+CRED-001); JSON schema is 1.5.0 and semantic observation contract is 1.1.0.
+Existing semantic budgets remain unchanged. Final graph reconciliation accepts at
+most 4,096 distinct computed callsites per workspace, with explicit incompleteness
+on affected files after that limit. Projection remains capped at 4,096 observations
+per file and reports truncation. These are bounded processing limits, not a hard
+memory limit or a completeness guarantee.
+
+Run the installed tier with `uv run --locked --offline pytest -m installed_cli`;
+it requires the existing prepared local uv cache, builds a wheel, and installs only
+locked Argus dependencies into a clean temporary environment. It never installs
+synthetic target dependencies. The fast tier is `pytest -m 'not installed_cli'`.

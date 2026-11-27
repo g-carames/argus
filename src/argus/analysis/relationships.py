@@ -8,12 +8,13 @@ from ..models.base import Confidence, Provenance
 from ..models.source import Evidence, SourceLocation
 from .extraction import ImportFact
 from .parsing import PRIMARY, walk
+from .semantic_contracts import Point
 
 
 @dataclass
 class Links:
     declarations: list = field(default_factory=list)  # hashed name, symbol id, lexical parent
-    calls: list = field(default_factory=list)  # owner, hashed name, import reference, imported name, line
+    calls: list = field(default_factory=list)  # owner, hashed name, import reference, imported name, line, Unicode column
     endpoints: list = field(default_factory=list)  # method, normalized path, line
     requests: list = field(default_factory=list)
 
@@ -32,6 +33,7 @@ def collect(file, parsed, facts):
     result=Links()
     if file.language not in PRIMARY: return result
     mid=facts.module.id
+    source_lines=parsed.content.splitlines()
     symbols={(s.location.start_line,s.location.start_column,s.kind):s for s in facts.symbols}
     bindings={}
     known_apps={}
@@ -109,7 +111,7 @@ def collect(file, parsed, facts):
                 imported=tail[0] if len(tail)==1 else member if not tail else None
                 if target:
                     key=identity('blocked' if head in blocked else 'binding',target if tail and not ref else head)
-                    result.calls.append((owner,key,ref,identity('binding',imported) if imported else None,n.lineno))
+                    result.calls.append((owner,key,ref,identity('binding',imported) if imported else None,n.lineno,len(source_lines[n.lineno-1][:n.col_offset].decode('utf-8',errors='replace'))+1))
             for child in ast.iter_child_nodes(n): visit(child,owner,blocked)
         visit(parsed.tree)
     else:
@@ -196,7 +198,7 @@ def collect(file, parsed, facts):
                 head,*tail=target.split('.')
                 ref,member=bindings.get(head,(None,None)) if head not in blocked else (None,None)
                 if re.fullmatch(r'[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)?',target):
-                    result.calls.append((owner,identity('blocked' if head in blocked else 'binding',target if tail and not ref else head),ref,identity('binding',tail[-1] if tail else member) if tail or member else None,line))
+                    result.calls.append((owner,identity('blocked' if head in blocked else 'binding',target if tail and not ref else head),ref,identity('binding',tail[-1] if tail else member) if tail or member else None,line,len(source_lines[n.start_point.row][:n.start_point.column].decode('utf-8',errors='replace'))+1))
                 if children:
                     first=string(children[0]) or (constants.get(text(children[0])) if text(children[0]) not in blocked else None)
                     verb='GET'
@@ -245,18 +247,18 @@ def assemble(facts_by_file, file_by_id, resolver, evidence):
             evidence.append(Evidence(id=eid,observation='Observed framework route declaration; route text withheld.',producer='argus.http',producer_version='1',provenance=Provenance.OBSERVED,confidence=Confidence.HIGH,locations=(loc,)))
             nodes.append(GraphNode(id=nid,kind='http_endpoint',label=method+' endpoint',file_id=fid,language=file.language,parent_id=facts.module.id,evidence_ids=(eid,),grouping_provenance=Provenance.OBSERVED))
             endpoints.append((method,path,nid))
-    def add(file,source,target,kind,status,line,key,observation,provenance=Provenance.INFERRED):
+    def add(file,source,target,kind,status,line,key,observation,provenance=Provenance.INFERRED,column=1,callsite=None):
         rid=identity('relationship',source+':'+key+':'+str(line))
         eid=identity('evidence',rid)
-        loc=SourceLocation(path=file.path,start_line=line,start_column=1)
+        loc=SourceLocation(path=file.path,start_line=line,start_column=column)
         evidence.append(Evidence(id=eid,observation=observation,producer='argus.links',producer_version='1',provenance=Provenance.OBSERVED,confidence=Confidence.HIGH,locations=(loc,)))
         edges.append(Relationship(id=rid,source_id=source,target_id=target,kind=kind,language=file.language,resolution=status,
-            target_reference=identity('reference',key),provenance=provenance,confidence=Confidence.MEDIUM,evidence_ids=(eid,),
+            target_reference=identity('reference',key),callsite_id=callsite,provenance=provenance,confidence=Confidence.MEDIUM,evidence_ids=(eid,),
             limitations=('Syntactic declarations only; shadowing, wrappers, re-exports, deployment, service identity and runtime reachability unverified. Route matches are candidates, never proof of communication.',)))
     paths={f.id:p for p,f in resolver.files.items()}
     for fid,facts in facts_by_file.items():
         file=file_by_id[fid]
-        for index,(owner,key,ref,member,line) in enumerate(facts.links.calls):
+        for index,(owner,key,ref,member,line,column) in enumerate(facts.links.calls):
             candidates=[]
             status=Resolution.UNRESOLVED
             if ref:
@@ -277,7 +279,7 @@ def assemble(facts_by_file, file_by_id, resolver, evidence):
                     scope=parents.get(scope,facts.module.id if scope!=facts.module.id else None)
                 status=Resolution.RESOLVED if len(candidates)==1 else Resolution.AMBIGUOUS if candidates else Resolution.UNRESOLVED
             add(file,owner,candidates[0] if len(candidates)==1 else None,RelationshipKind.CALL,status,line,'call:'+str(index),
-                'Observed call syntax; static binding target inferred when unique.')
+                'Observed call syntax; static binding target inferred when unique.',column=column,callsite=Point(facts.module.id,owner,line,column).key('callsite'))
         for index,(method,path,line,context) in enumerate(facts.links.requests):
             matches=[]
             budget_exceeded=context=='local' and path and method and comparisons+len(endpoints)>1000000
@@ -294,3 +296,56 @@ def assemble(facts_by_file, file_by_id, resolver, evidence):
                 'Observed frontend request declaration. Method/path compatibility only; no verified service or deployment identity.' + (' Matching not evaluated: resource budget exhausted.' if budget_exceeded else ''))
     # Repeated syntax on one physical line remains distinct by ordinal.
     return nodes,edges,diagnostics
+
+
+def reconcile(graph,facts_by_file,files,evidence):
+    """One bounded pass over computed call facts; preserve observed syntax evidence.
+
+    Alternatives and unknown contexts prevent definite edges. No receiver solving
+    occurs here, and inferred deployment relationships are never rewritten.
+    """
+    from dataclasses import replace
+    from .semantic_contracts import FactState
+    grouped={}
+    for fid,facts in sorted(facts_by_file.items()):
+        if not facts.semantic: continue
+        for site in facts.semantic.sites:
+            if site.operation=='receiver_resolution' and site.callsite_id:
+                grouped.setdefault((fid,site.callsite_id),[]).append(site)
+    edges=list(graph.relationships)
+    syntax_index={}
+    for index,edge in enumerate(edges):
+        if edge.kind==RelationshipKind.CALL and edge.callsite_id:
+            syntax_index.setdefault(edge.callsite_id,[]).append(index)
+    reconciled=0
+    for (fid,callsite),sites in sorted(grouped.items()):
+        fact=facts_by_file[fid]
+        if reconciled >= 4096:
+            fact.semantic.incomplete=tuple(sorted(set(fact.semantic.incomplete+('semantic_graph_reconciliation_limit',))))
+            continue
+        reconciled+=1
+        targets=tuple(sorted({t for s in sites for t in s.candidate_target_ids}))
+        definite=len(targets)==1 and all(s.target_id==targets[0] and s.fact_state==FactState.KNOWN for s in sites)
+        resolution=Resolution.RESOLVED if definite else Resolution.AMBIGUOUS if targets else Resolution.UNRESOLVED
+        site=sites[0]
+        rid=identity('relationship','semantic:'+callsite)
+        eid=identity('evidence',rid)
+        evidence.append(Evidence(id=eid,observation='Semantic static call binding: '+resolution.value+'; alternatives retained, runtime dispatch unverified.',
+            producer='argus.semantic.links',producer_version='1',provenance=Provenance.INFERRED,
+            confidence=Confidence.MEDIUM,locations=(SourceLocation(path=files[fid].path,start_line=site.line,start_column=site.column),)))
+        resolved=Relationship(id=rid,source_id=site.owner,target_id=targets[0] if definite else None,
+            target_reference=callsite,kind=RelationshipKind.CALL,language=files[fid].language,
+            resolution=resolution,provenance=Provenance.INFERRED,confidence=Confidence.MEDIUM,evidence_ids=(eid,),
+            callsite_id=callsite,context_ids=tuple(sorted({s.context_id for s in sites})),candidate_target_ids=targets,
+            limitations=('Bounded nonrecursive static contexts only; external callers and dynamic receiver behavior remain unknown. Syntax evidence is retained.',))
+        # Exact shared callsite identity avoids line-only attribution and an
+        # O(computed_calls * all_edges) reconciliation scan. Constructor syntax
+        # may resolve to a class while its implicit initializer is a distinct edge.
+        matching=[(i,edges[i]) for i in syntax_index.get(callsite,())
+            if edges[i].target_id==resolved.target_id or edges[i].resolution!=Resolution.RESOLVED]
+        if len(matching)==1:
+            index,syntax=matching[0]
+            edges[index]=replace(resolved,id=syntax.id,evidence_ids=syntax.evidence_ids+resolved.evidence_ids)
+        else:
+            edges.append(resolved)
+    return replace(graph,relationships=tuple(sorted(edges,key=lambda r:r.id)))
