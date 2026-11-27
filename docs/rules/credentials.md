@@ -6,7 +6,7 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 
 ## ARGUS-CRED-001 — Potential embedded credential
 
-- Version: 1.1.0; implementation status: implemented.
+- Version: 1.2.0; implementation status: implemented.
 - Primary category: credentials; secondary categories: none.
 - Languages: all eligible UTF-8 text.
 - Required capabilities: credential_detection.
@@ -20,5 +20,5 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 - Negative example: api_key = os.environ["API_KEY"].
 - Remediation: Remove exposed material and investigate rotation and revocation separately with the provider using a trusted manual process.
 - Validation: Confirm source removal and independently establish appropriate revocation; removal alone is insufficient.
-- Limitations and false positives: Heuristic candidates, not validated credentials. Templates can be false positives. Discovery exclusions apply; ignored local configuration, tracked-file override, history, persistence, reuse and remediation transitions are unavailable. Contextual refinement is bounded and partial; see docs/milestone-5.md for exact supported scopes and budgets.
+- Limitations and false positives: Heuristic candidates, not validated credentials. Templates can be false positives. Discovery exclusions apply; ignored local configuration, tracked-file override, history, persistence, reuse and remediation transitions are unavailable. Contextual refinement is bounded and partial; see docs/milestone-5.1.md for exact supported scopes and budgets.
 - Associated automated tests: `tests/test_risk_rules.py` (parameterized positive, negative and disabled cases); `tests/test_analysis_graphs.py` and `tests/test_analysis_parsing.py` cover measurement primitives.

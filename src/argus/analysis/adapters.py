@@ -17,10 +17,8 @@ def supported_caps(language):
         caps |= {Capability.STRUCTURE, Capability.CONFIGURATION}
     elif language in ('sql', 'dockerfile'):
         caps = {Capability.STRUCTURE, Capability.CREDENTIALS}  # no claim of syntax validation
-    if language == 'python':
+    if language in PRIMARY:
         caps |= {Capability.CONTROL_FLOW, Capability.DATA_FLOW, Capability.SUMMARIES, Capability.BOUNDS, Capability.TAINT}
-    elif language in PRIMARY:
-        caps.add(Capability.SUMMARIES)
     return caps
 
 
@@ -47,4 +45,4 @@ def descriptor(language):
         capabilities=tuple(CapabilityDeclaration(capability=c, available=c in available,
             reason='Available with language-specific static limitations.' if c in available else 'No implemented capability or prepared grammar unavailable.',
             limitations=('Syntax success does not establish semantic or security completeness.',
-                          'Python: bounded local structured flow and direct module-function contexts; JS/TS/JSX/TSX: operation summaries only. No general framework safeguard verification.',)) for c in Capability))
+                          'Python and JS-family: bounded restricted flow and statically resolved module-function contexts; independent partial CFG/dataflow/bounds/taint. No general framework authorization or runtime verification.',)) for c in Capability))

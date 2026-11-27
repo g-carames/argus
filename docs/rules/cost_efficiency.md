@@ -6,13 +6,13 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 
 ## ARGUS-COST-001 — Database call inside loop
 
-- Version: 1.1.0; implementation status: implemented.
+- Version: 1.2.0; implementation status: implemented.
 - Primary category: cost_efficiency; secondary categories: performance_scalability.
 - Languages: python, javascript, typescript, jsx, tsx.
 - Required capabilities: structural_analysis.
 - Evaluated parameter: `occurrence_cost_001`; default threshold: `0`; strict greater-than.
 - Methodology: execute/executemany/query call lexically within for/while (Python includes async for); nested function scopes reset loop context.
-- Contextual investigation: Same bounded iteration and operation-summary methodology as AI-002 for execute/executemany/query candidates. No receiver/database typing or database result-limit enforcement. Bounded observations remain findings at their original severity; bounds do not establish acceptable cost.
+- Contextual investigation: Same bounded iteration and operation-summary methodology as AI-002 for execute/executemany/query candidates. No receiver/database typing or database result-limit enforcement. Bounded observations remain findings at their original severity; bounds do not establish acceptable cost. Milestone 5.1 extends this with bounded uniquely resolved cross-file function/constant/alias/re-export flow, keyword-only defaults, unknown external-argument entries, and separate JS-family restricted syntax lowering. Simple Python receiver/constructor/factory identities and requests.Session/httpx constructor timeouts are tracked; request overrides take precedence. Python numerical min/max clamps and monotonic final-increment counters can bound per-invocation domains. Early returns join rather than discard alternate values. Async suspension, mutation, unknown calls, recursion and exhausted budgets cannot establish safety. Python FastAPI input/Flask request influence and narrow Flask-Login/FastAPI bearer-presence observations are retained without authorization or runtime-enforcement claims. See docs/milestone-5.1.md and tests/test_semantic_cross_file.py for exact exclusions and paired tests.
 - Contextual tests: `tests/test_semantic_context.py`.
 - Default severity: medium; confidence criteria: medium: exact named syntax observed; runtime binding, exploitation and omitted safeguards unverified.
 - Why it matters: Observed static patterns may expose data, execution boundaries or resources. Cost consequences are potential, not measured expense.
@@ -20,5 +20,5 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 - Negative example: cursor.executemany(query, rows).
 - Remediation: Review the observed boundary; use safe APIs, explicit validated limits and appropriate batching or error handling.
 - Validation: Re-scan the same scope and verify the risky pattern is removed or document a reviewed exception.
-- Limitations and false positives: Initial syntactic matching; contextual supplement applies only where explicitly documented. Aliases supported for Python imports and JS child_process named imports. General shadowing, dynamic indirect calls, arbitrary wrappers, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere. Contextual refinement is bounded and partial; see docs/milestone-5.md for exact supported scopes and budgets.
+- Limitations and false positives: Initial syntactic matching; contextual supplement applies only where explicitly documented. Aliases supported for Python imports and JS child_process named imports. General shadowing, dynamic indirect calls, arbitrary wrappers, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere. Contextual refinement is bounded and partial; see docs/milestone-5.1.md for exact supported scopes and budgets.
 - Associated automated tests: `tests/test_risk_rules.py` (parameterized positive, negative and disabled cases); `tests/test_analysis_graphs.py` and `tests/test_analysis_parsing.py` cover measurement primitives.

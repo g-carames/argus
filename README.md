@@ -180,3 +180,10 @@ Milestone 5 adds a [bounded contextual analysis subset](docs/milestone-5.md),
 [source-free assessment contracts](docs/data-contract.md) and explicit semantic
 coverage gaps. See the [laboratory comparison](docs/milestone-5-evaluation.md);
 this is not independent accuracy benchmark validation.
+
+Milestone 5.1 adds [bounded cross-file semantic flow](docs/milestone-5.1.md),
+Python receiver/client configuration tracking and separate restricted JS-family
+flow analysis. The linked implementation scope lists remaining approved work;
+general framework authorization, Express middleware verification, retry/backoff
+and database-limit enforcement remain unavailable. The frozen independent corpus
+has not been inspected or evaluated for this implementation.

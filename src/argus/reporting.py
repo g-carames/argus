@@ -123,6 +123,13 @@ class JsonReportWriter:
         data["not_reviewed_portions_of_the_code"] = {
             "title": "Not Reviewed Portions of the Code",
             "portions": not_reviewed,
+            "unavailable_contextual_capabilities": [
+                "General authorization and identity-verification effectiveness; external gateway/proxy controls.",
+                "Express middleware execution ordering and bypass verification.",
+                "Retry/backoff policy applicability and shared/global execution budgets (simple local counter bounds only).",
+                "Database query-limit API enforcement; general validation/redaction effectiveness.",
+                "Dynamic dispatch, mutable global invariants, closures, JS prototypes/getters and asynchronous scheduling.",
+            ],
             "semantic_analysis_gaps": to_data(tuple(d for d in result.diagnostics if d.code == 'semantic_analysis_incomplete')),
             "unsupported_languages_and_formats": [unsupported[key] for key in sorted(unsupported)],
             "inventory_gaps": to_data(result.coverage.inventory_gaps),

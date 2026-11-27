@@ -9,8 +9,8 @@ from ..privacy import identity
 
 LIMITATIONS = (
     'Bounded static analysis only; no runtime enforcement, authentication/authorization, validation effectiveness, isolation, caching, throttling, retries or shared agent budgets verified.',
-    'Python flow supports module-level functions, positional/keyword arguments, simple returns, assignments, if joins, literal/range/slice collection bounds and input-to-execution propagation. No arbitrary dynamic dispatch, exceptions, closures, heap identities or cross-file value propagation.',
-    'JavaScript-family summaries propagate operation kinds through existing uniquely resolved calls only; value flow and safeguard applicability unavailable. Provider import plus suffix remains heuristic receiver evidence.',
+    'Bounded Python and JS-family flow supports statically resolved module functions, arguments/returns and finite collection domains. Dynamic dispatch, exceptions, mutable global invariants, arbitrary aliases and scheduling remain incomplete.',
+    'JavaScript uses a separate restricted Tree-sitter lowering; coercion, closures, prototypes, getters, destructuring, promise scheduling and general counter-loop bounds remain unavailable. Provider import plus suffix without a resolved receiver remains heuristic evidence.',
 )
 
 
@@ -19,6 +19,7 @@ def investigate(facts_by_file, graph, evidence, files):
 
     No summary removes or resolves an original risk observation.
     """
+    module_files={f.module.id:files[fid] for fid,f in facts_by_file.items()}
     sites={fid:list(f.semantic.sites) for fid,f in facts_by_file.items() if f.semantic}
     summaries={owner:set(ops) for f in facts_by_file.values() if f.semantic for owner,ops in f.semantic.summaries.items()}
     locations={e.id:e.locations for e in evidence}
@@ -79,35 +80,50 @@ def investigate(facts_by_file, graph, evidence, files):
             if site.operation=='database' and site.loops: keys.append('ARGUS-COST-001')
             if site.operation=='execution' and site.tainted: keys.append('ARGUS-SEC-001')
             if site.operation=='database' and site.dynamic_sql: keys.append('ARGUS-SEC-004')
-            if files[fid].language=='python' and not site.limit and not site.expanded:
+            if not site.expanded:
                 if site.operation=='http': keys.append('ARGUS-REL-003')
                 if site.operation=='model': keys.append('ARGUS-AI-001')
             for key in keys:
-                additions[fid].add((key,site.line))
+                if key not in ('ARGUS-REL-003','ARGUS-AI-001') or not site.limit:
+                    additions[fid].add((key,site.line))
                 grouped.setdefault((key,site.line),[]).append(site)
         for (key,line),contexts in grouped.items():
             bounded=[s for s in contexts if s.upper_bound is not None] if key in ('ARGUS-AI-002','ARGUS-COST-001') else []
+            limited=[s for s in contexts if s.limit] if key in ('ARGUS-REL-003','ARGUS-AI-001') else []
+            framework=tuple(sorted({g for s in contexts for g in s.safeguards}))
             # De-duplicate graph and interpreter contexts conservatively.
             applicable=bool(bounded) and len(bounded)==len(contexts) and not gaps[fid]
             configured=any(s.configuration_observed for s in contexts)
-            state=M.ESTABLISHED if applicable else M.PARTIAL if bounded else M.UNVERIFIED if configured else M.UNDETERMINED if gaps[fid] else M.NONE
+            state=M.ESTABLISHED if applicable else M.PARTIAL if bounded or limited else M.UNVERIFIED if configured else M.UNDETERMINED if gaps[fid] else M.NONE
             loc=SourceLocation(path=files[fid].path,start_line=line,start_column=1)
             eid=identity('evidence',fid+':context:'+key+':'+str(line))
             observation='Contextual investigation: '+str(len(contexts))+' statically analyzed operation contexts; '
             if bounded:
                 observation+='iteration-domain upper bound at most '+str(max(s.upper_bound for s in bounded))+' in '+str(len(bounded))+' contexts. '
             if any(s.tainted for s in contexts): observation+='Possible input-source influence reaches this operation. '
-            if configured: observation+='Explicit limit configuration observed; a positive numerical value was not established. '
+            if limited: observation+=str(len(limited))+' contexts have an applicable positive numerical operation limit; other contexts remain independently assessed. '
+            if any(s.sensitive for s in contexts): observation+='Possible environment-derived sensitive information reaches this operation; disclosure and redaction effectiveness are unverified. '
+            if framework: observation+='Framework safeguard registration observed; identity validation, authorization and deployment enforcement remain unverified. '
+            if any(s.receiver_resolved for s in contexts): observation+='A statically identified receiver contributes operation evidence. '
+            origins=tuple(sorted({origin for s in contexts for origin in s.origins}))
+            if origins: observation+='Value-flow provenance includes '+str(len(origins))+' source-free module/line origins. '
+            if configured and not limited: observation+='Explicit limit configuration observed; a positive numerical value was not established. '
             observation+='Unknown or other callers are not protected by these bounds. No measured cost or runtime enforcement assertion.'
             evidence.append(Evidence(id=eid,observation=observation,producer='argus.semantic',producer_version='1',
-                confidence=Confidence.MEDIUM,provenance=Provenance.INFERRED,locations=(loc,)))
+                confidence=Confidence.MEDIUM,provenance=Provenance.INFERRED,locations=(loc,)+tuple(SourceLocation(path=module_files[mid].path,start_line=point,start_column=1) for mid,point in origins if mid in module_files and (module_files[mid].path,point)!=(loc.path,loc.start_line))))
             relevant={e.id:e for s in contexts for point in s.context+(s.line,) for e in calls_at.get((fid,point),())}
             related=tuple(sorted(relevant))
             unresolved=tuple(eid for eid in related if relevant[eid].resolution in (Resolution.UNRESOLVED,Resolution.AMBIGUOUS))
             guards=(Safeguard(kind='iteration_domain_bound',evidence_ids=(eid,),applicability=state,
                 reason='Literal collection/range/slice bound in listed contexts; mutation and unknown calls invalidate known collection bounds.'),) if bounded else (Safeguard(kind='explicit_limit_configuration',evidence_ids=(eid,),applicability=M.UNVERIFIED,reason='Configuration supplied but a positive numerical limit could not be established.'),) if configured else ()
+            if limited:
+                guards+=(Safeguard(kind='positive_operation_limit',evidence_ids=(eid,),applicability=M.PARTIAL,
+                    reason='A positive numerical token/timeout limit applies in the listed contexts; unknown/external callers and runtime changes remain unverified.'),)
+            for guard in framework:
+                guards+=(Safeguard(kind=guard,evidence_ids=(eid,),applicability=M.UNVERIFIED,
+                    reason='Known framework dependency/decorator observed; credential presence differs from identity verification and authorization. No finding is suppressed.'),)
             assessments[fid,key,line]=Assessment(initial_pattern=key,mitigation_state=state,
-                supporting_evidence_ids=(eid,),contradictory_evidence_ids=(eid,) if bounded else (),safeguards=guards,
+                supporting_evidence_ids=(eid,),contradictory_evidence_ids=(eid,) if bounded or limited else (),safeguards=guards,
                 call_path_relationship_ids=related,unresolved_relationship_ids=unresolved,
                 assumptions=('Static call bindings and standard Python builtins retain their ordinary meanings; no external monkey patching.',
                     'Recognized external operation candidates do not mutate the iteration domain; receiver identity and runtime behavior remain unverified.'),

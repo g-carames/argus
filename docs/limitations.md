@@ -87,12 +87,16 @@ See the [Milestone 4 record](milestone-4.md) and
 historical and do not describe current implementation scope.
 
 
-## Milestone 5 contextual subset
+## Milestone 5.1 contextual subset
 
-See [Milestone 5](milestone-5.md) for exact methodology, safeguards, assumptions,
-fixed resource budgets, examples, tests and deferred scope. Python adds bounded
-structured flow and local function contexts; JavaScript/TypeScript/JSX/TSX add
-operation summaries through existing resolved calls. No general framework security,
-database-limit enforcement or cross-file value flow. Findings retain observations;
-uncertain safeguards cannot suppress them. Budget/unsupported-control diagnostics
-appear in **Not Reviewed Portions of the Code**. No semantic completeness claim.
+See [Milestone 5.1](milestone-5.1.md) for exact supported syntax, abstract domains,
+receiver identities, cross-file flow, framework observations, budgets and remaining
+approved work. All primary languages have independent partial flow capabilities.
+Fixed programmatic budgets include 128 workspace modules/contexts, receiver depth 8
+and 8192 retained source-free IR nodes per file; no new TOML settings. Unknown
+external arguments do not inherit defaults. No general authorization, Express
+middleware ordering, database query-limit enforcement, retry/backoff policy, shared
+agent budget or sanitizer/redaction verification is claimed. Observations remain
+separate from mitigation and severity. Actual budget/unsupported-flow diagnostics
+and unavailable contextual capabilities appear in **Not Reviewed Portions of the
+Code**, including scans with no findings. No semantic completeness claim.

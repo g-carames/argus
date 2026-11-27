@@ -89,15 +89,18 @@ bug is fixed. No hard memory cap; Python/JSON/TOML/SQL are not isolated. POSIX C
 macOS arm64 is measured; other platforms and multithreaded spawn are not validated.
 
 
-## Milestone 5 independent semantic capabilities
+## Milestone 5.1 independent semantic capabilities
 
-| Language | Control flow | Local data flow | Operation summaries | Collection bounds | Source-to-sink |
+| Language | Control flow | Local/cross-file data flow | Summaries | Bounds | Source-to-sink |
 | --- | --- | --- | --- | --- | --- |
-| Python | partial structured CFG | bounded local functions/arguments/returns | local + resolved CALL graph | literal/range/slice, conservative mutation invalidation | input to direct execution only |
-| JavaScript, TypeScript, JSX, TSX | unavailable | unavailable | bounded resolved CALL graph | unavailable | unavailable |
-| All other formats | unavailable | unavailable | unavailable | unavailable | unavailable |
+| Python | partial structured CFG | unique functions/constants, arguments/returns, simple classes | bounded local + resolved CALL graph | literal/range/slice, numeric clamps, simple counters | bounded input/framework/model/environment influence |
+| JavaScript, TypeScript, JSX, TSX | restricted structured lowering | assignments, top-level functions/arguments/returns and named imports | bounded local + resolved CALL graph | dense arrays/slice, conservative mutation invalidation | possible influence through supported flow; no general request-source verification |
+| Other formats | unavailable | unavailable | unavailable | unavailable | unavailable |
 
-Each column has an independent Capability declaration. Availability means partial
-implemented scope, never complete language support. Framework safeguards remain
-unavailable. Exact assumptions, budgets, positive/negative examples and associated
-tests are in [Milestone 5](milestone-5.md).
+Every column is an independent partial capability, never complete language support.
+Python OpenAI/Anthropic and requests/httpx constructors, simple class fields/factories
+and narrow Flask-Login/FastAPI bearer-presence observations supplement legacy syntax.
+General authorization, Express middleware ordering, database limits, retry/backoff,
+JS closures/prototypes/getters and scheduling remain unavailable. Existing route and
+provider tables above describe base syntactic extraction; semantic refinements and
+all exclusions are in [Milestone 5.1](milestone-5.1.md). No runtime safeguard proof.

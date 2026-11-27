@@ -336,3 +336,9 @@ Earlier descriptions of discovery as future work apply to the Milestone 1
 foundation only; Milestone 2 behavior above supersedes those statements. Model-only
 callers may omit the optional inventory record. Consumers must tolerate these
 additive 1.1 fields while continuing to reject unsupported major versions.
+
+Milestone 5.1 adds `unavailable_contextual_capabilities` to JSON's
+`not_reviewed_portions_of_the_code`, alongside actual `semantic_analysis_gaps`.
+Context evidence locations may include bounded source-free module/line value origins.
+Internal sanitized flow IR is never part of the report contract. See
+[Milestone 5.1](milestone-5.1.md) for provenance truncation and partial coverage.

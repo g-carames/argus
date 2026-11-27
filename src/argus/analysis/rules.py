@@ -124,9 +124,11 @@ CONTEXT_METHODS = {
     'ARGUS-SEC-001': 'Python input() source influence propagates through simple local assignments, arguments, returns and unknown function calls to direct execution sinks. Evidence does not prove exploitability or sanitizer effectiveness; original execution observation always retained.',
     'ARGUS-CRED-001': 'Additionally recognize generic JS-family browser key literal assignments (>=16 characters) only with a credential-like value marker secret/api-key/access-token/browser-key, fetch call and JSON.stringify use of key. Ordinary key values and naming/comments alone do not qualify. No raw value retained; potential exposure only.',
 }
-REGISTRY = tuple(replace(r, version='1.1.0', contextual_analysis=CONTEXT_METHODS[r.id],
+for _rule in ('ARGUS-AI-001','ARGUS-AI-002','ARGUS-COST-001','ARGUS-REL-003','ARGUS-SEC-004','ARGUS-SEC-001'):
+    CONTEXT_METHODS[_rule] += ' Milestone 5.1 extends this with bounded uniquely resolved cross-file function/constant/alias/re-export flow, keyword-only defaults, unknown external-argument entries, and separate JS-family restricted syntax lowering. Simple Python receiver/constructor/factory identities and requests.Session/httpx constructor timeouts are tracked; request overrides take precedence. Python numerical min/max clamps and monotonic final-increment counters can bound per-invocation domains. Early returns join rather than discard alternate values. Async suspension, mutation, unknown calls, recursion and exhausted budgets cannot establish safety. Python FastAPI input/Flask request influence and narrow Flask-Login/FastAPI bearer-presence observations are retained without authorization or runtime-enforcement claims. See docs/milestone-5.1.md and tests/test_semantic_cross_file.py for exact exclusions and paired tests.'
+REGISTRY = tuple(replace(r, version='1.2.0', contextual_analysis=CONTEXT_METHODS[r.id],
     contextual_tests='tests/test_semantic_context.py',
-    limitations=r.limitations+' Contextual refinement is bounded and partial; see docs/milestone-5.md for exact supported scopes and budgets.')
+    limitations=r.limitations+' Contextual refinement is bounded and partial; see docs/milestone-5.1.md for exact supported scopes and budgets.')
     if r.id in CONTEXT_METHODS else r for r in REGISTRY)
 BY_ID = {r.id: r for r in REGISTRY}
 

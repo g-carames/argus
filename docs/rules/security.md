@@ -6,13 +6,13 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 
 ## ARGUS-SEC-001 — Dynamic code execution
 
-- Version: 1.1.0; implementation status: implemented.
+- Version: 1.2.0; implementation status: implemented.
 - Primary category: security; secondary categories: none.
 - Languages: python, javascript, typescript, jsx, tsx.
 - Required capabilities: security_rules.
 - Evaluated parameter: `occurrence_sec_001`; default threshold: `0`; strict greater-than.
 - Methodology: Direct eval/exec calls (Python) or eval/Function calls (JS family).
-- Contextual investigation: Python input() source influence propagates through simple local assignments, arguments, returns and unknown function calls to direct execution sinks. Evidence does not prove exploitability or sanitizer effectiveness; original execution observation always retained.
+- Contextual investigation: Python input() source influence propagates through simple local assignments, arguments, returns and unknown function calls to direct execution sinks. Evidence does not prove exploitability or sanitizer effectiveness; original execution observation always retained. Milestone 5.1 extends this with bounded uniquely resolved cross-file function/constant/alias/re-export flow, keyword-only defaults, unknown external-argument entries, and separate JS-family restricted syntax lowering. Simple Python receiver/constructor/factory identities and requests.Session/httpx constructor timeouts are tracked; request overrides take precedence. Python numerical min/max clamps and monotonic final-increment counters can bound per-invocation domains. Early returns join rather than discard alternate values. Async suspension, mutation, unknown calls, recursion and exhausted budgets cannot establish safety. Python FastAPI input/Flask request influence and narrow Flask-Login/FastAPI bearer-presence observations are retained without authorization or runtime-enforcement claims. See docs/milestone-5.1.md and tests/test_semantic_cross_file.py for exact exclusions and paired tests.
 - Contextual tests: `tests/test_semantic_context.py`.
 - Default severity: medium; confidence criteria: medium: exact named syntax observed; runtime binding, exploitation and omitted safeguards unverified.
 - Why it matters: Observed static patterns may expose data, execution boundaries or resources. Cost consequences are potential, not measured expense.
@@ -20,7 +20,7 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 - Negative example: literal parsing without execution.
 - Remediation: Review the observed boundary; use safe APIs, explicit validated limits and appropriate batching or error handling.
 - Validation: Re-scan the same scope and verify the risky pattern is removed or document a reviewed exception.
-- Limitations and false positives: Initial syntactic matching; contextual supplement applies only where explicitly documented. Aliases supported for Python imports and JS child_process named imports. General shadowing, dynamic indirect calls, arbitrary wrappers, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere. Contextual refinement is bounded and partial; see docs/milestone-5.md for exact supported scopes and budgets.
+- Limitations and false positives: Initial syntactic matching; contextual supplement applies only where explicitly documented. Aliases supported for Python imports and JS child_process named imports. General shadowing, dynamic indirect calls, arbitrary wrappers, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere. Contextual refinement is bounded and partial; see docs/milestone-5.1.md for exact supported scopes and budgets.
 - Associated automated tests: `tests/test_risk_rules.py` (parameterized positive, negative and disabled cases); `tests/test_analysis_graphs.py` and `tests/test_analysis_parsing.py` cover measurement primitives.
 
 ## ARGUS-SEC-002 — Shell execution boundary
@@ -63,13 +63,13 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 
 ## ARGUS-SEC-004 — Dynamically constructed SQL
 
-- Version: 1.1.0; implementation status: implemented.
+- Version: 1.2.0; implementation status: implemented.
 - Primary category: security; secondary categories: none.
 - Languages: python, javascript, typescript, jsx, tsx.
 - Required capabilities: security_rules.
 - Evaluated parameter: `occurrence_sec_004`; default threshold: `0`; strict greater-than.
 - Methodology: execute/executemany/query first argument is a Python f-string, addition or percent expression, or JS template interpolation/addition.
-- Contextual investigation: Python dynamically constructed SQL flags propagate through simple assignments, arguments and returns, including possible branch joins. Parameterized literals produce no syntax candidate. Unknown sanitizer calls do not establish safety; no SQL dialect, driver or escaping effectiveness verification.
+- Contextual investigation: Python dynamically constructed SQL flags propagate through simple assignments, arguments and returns, including possible branch joins. Parameterized literals produce no syntax candidate. Unknown sanitizer calls do not establish safety; no SQL dialect, driver or escaping effectiveness verification. Milestone 5.1 extends this with bounded uniquely resolved cross-file function/constant/alias/re-export flow, keyword-only defaults, unknown external-argument entries, and separate JS-family restricted syntax lowering. Simple Python receiver/constructor/factory identities and requests.Session/httpx constructor timeouts are tracked; request overrides take precedence. Python numerical min/max clamps and monotonic final-increment counters can bound per-invocation domains. Early returns join rather than discard alternate values. Async suspension, mutation, unknown calls, recursion and exhausted budgets cannot establish safety. Python FastAPI input/Flask request influence and narrow Flask-Login/FastAPI bearer-presence observations are retained without authorization or runtime-enforcement claims. See docs/milestone-5.1.md and tests/test_semantic_cross_file.py for exact exclusions and paired tests.
 - Contextual tests: `tests/test_semantic_context.py`.
 - Default severity: medium; confidence criteria: medium: exact named syntax observed; runtime binding, exploitation and omitted safeguards unverified.
 - Why it matters: Observed static patterns may expose data, execution boundaries or resources. Cost consequences are potential, not measured expense.
@@ -77,7 +77,7 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 - Negative example: cursor.execute("SELECT ?", (value,)).
 - Remediation: Review the observed boundary; use safe APIs, explicit validated limits and appropriate batching or error handling.
 - Validation: Re-scan the same scope and verify the risky pattern is removed or document a reviewed exception.
-- Limitations and false positives: Initial syntactic matching; contextual supplement applies only where explicitly documented. Aliases supported for Python imports and JS child_process named imports. General shadowing, dynamic indirect calls, arbitrary wrappers, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere. Contextual refinement is bounded and partial; see docs/milestone-5.md for exact supported scopes and budgets.
+- Limitations and false positives: Initial syntactic matching; contextual supplement applies only where explicitly documented. Aliases supported for Python imports and JS child_process named imports. General shadowing, dynamic indirect calls, arbitrary wrappers, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere. Contextual refinement is bounded and partial; see docs/milestone-5.1.md for exact supported scopes and budgets.
 - Associated automated tests: `tests/test_risk_rules.py` (parameterized positive, negative and disabled cases); `tests/test_analysis_graphs.py` and `tests/test_analysis_parsing.py` cover measurement primitives.
 
 ## ARGUS-SEC-005 — Legacy cryptographic digest

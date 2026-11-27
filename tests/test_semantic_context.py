@@ -74,7 +74,9 @@ def test_loop_carried_assignment_not_constant():
 
 def test_shared_wrapper_timeout_used_vs_unused(tmp_path):
     safe='import requests\ndef request(url, timeout=5):\n return requests.get(url, timeout=timeout)\nrequest(address)'
-    assert not findings(tmp_path,safe,'ARGUS-REL-003')
+    protected=findings(tmp_path,safe,'ARGUS-REL-003')
+    # A default protects omitted arguments, not unresolved external overrides.
+    assert protected and protected[0].assessment.mitigation_state==M.PARTIAL
     fs=findings(tmp_path,safe.replace('timeout=timeout','other=timeout'),'ARGUS-REL-003')
     assert fs and fs[0].assessment
     fs=findings(tmp_path,safe.replace('timeout=5','timeout=None'),'ARGUS-REL-003')
@@ -213,7 +215,7 @@ def test_capabilities_are_independent():
     from argus.models.base import Capability as C
     assert {C.CONTROL_FLOW,C.DATA_FLOW,C.SUMMARIES,C.BOUNDS,C.TAINT} <= supported_caps('python')
     assert C.SUMMARIES in supported_caps('typescript')
-    assert not {C.CONTROL_FLOW,C.DATA_FLOW,C.BOUNDS,C.TAINT} & supported_caps('typescript')
+    assert {C.CONTROL_FLOW,C.DATA_FLOW,C.BOUNDS,C.TAINT} <= supported_caps('typescript')
 
 
 def test_unverified_safeguard_cannot_adjust_severity():
