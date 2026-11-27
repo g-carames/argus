@@ -1,15 +1,17 @@
 """Versioned scan result contract, deliberately independent of parsers and graphs libraries."""
 
 from dataclasses import dataclass
+from enum import StrEnum
 
 from .analysis import Finding, Graph
 from .base import Capability, Category, Record, Status, nonempty, require, unique
 from .coverage import Coverage
-from .credentials import CredentialExposure
+from .credentials import CredentialExposure, CredentialCandidate
 from .execution import ExecutionMetadata, ResourceBudget, RootScope
+from .semantic import SemanticObservation
 from .source import Evidence, Module, SourceFile, SourceLocation, Symbol
 
-SCHEMA_VERSION = "1.3.0"
+SCHEMA_VERSION = "1.4.0"
 DISCLAIMER = (
     "Argus is a software architecture analysis and decision-support tool. It does not certify or "
     "guarantee software safety, security, correctness, reliability, regulatory compliance, or AI "
@@ -42,12 +44,23 @@ class ScanScope(Record):
         unique(tuple(root.id for root in self.roots))
 
 
+class DiagnosticClass(StrEnum):
+    UNSUPPORTED = 'expected_unsupported'
+    UNRESOLVED = 'unresolved_runtime_behavior'
+    PARTIAL = 'partial_semantic_coverage'
+    RESOURCE = 'resource_budget_exhaustion'
+    FAILURE = 'parser_or_analysis_failure'
+
+
 @dataclass(frozen=True, kw_only=True)
 class Diagnostic(Record):
     code: str
     stage: str
     message: str
     location: SourceLocation | None = None
+    classification: DiagnosticClass = DiagnosticClass.FAILURE
+    affected_locations: tuple[SourceLocation, ...] = ()
+    occurrences: int = 1
 
     def validate(self) -> None:
         for value in (self.code, self.stage, self.message):
@@ -89,8 +102,10 @@ class ScanResult(Record):
     modules: tuple[Module, ...] = ()
     symbols: tuple[Symbol, ...] = ()
     findings: tuple[Finding, ...] = ()
+    semantic_observations: tuple[SemanticObservation, ...] = ()
     graph: Graph = Graph()
     credentials: tuple[CredentialExposure, ...] | None = None
+    credential_candidates: tuple[CredentialCandidate, ...] = ()
     diagnostics: tuple[Diagnostic, ...] = ()
     limitations: tuple[str, ...] = ()
     schema_version: str = SCHEMA_VERSION
@@ -126,6 +141,15 @@ class ScanResult(Record):
         symbols = {symbol.id: symbol for symbol in self.symbols}
         evidence_ids = {item.id for item in self.evidence}
         require(set(files) == {item.file_id for item in self.coverage.files}, "file coverage mismatch")
+        unique(tuple(o.id for o in self.semantic_observations))
+        for observation in self.semantic_observations:
+            require(observation.file_id in files, 'observation references missing file')
+            require(observation.scope_id in set(files)|set(modules)|set(symbols), 'observation references missing scope')
+            require(set(observation.evidence_ids) <= evidence_ids, 'dangling semantic evidence')
+            require(set(observation.relationship_ids) <= {r.id for r in self.graph.relationships}, 'dangling semantic relationship')
+        unique(tuple(c.id for c in self.credential_candidates))
+        for candidate in self.credential_candidates:
+            require(candidate.file_id in files and set(candidate.evidence_ids)<=evidence_ids, 'dangling credential candidate')
         rules = {item.rule_id: item for item in self.coverage.rules}
         for category in self.coverage.categories:
             require(set(category.rule_ids) <= set(rules), "category references missing rule coverage")

@@ -1,7 +1,7 @@
 """Incremental analysis collector; retains facts, never raw source buffers."""
 from dataclasses import replace
 
-from .parsing import parse, PRIMARY, SUPPORTED, ParseFailure, ParseUnavailable
+from .parsing import parse, PRIMARY, SUPPORTED, ParseFailure, ParseUnavailable, ParseResourceLimit
 from .extraction import extract
 from .resolution import Resolver
 from .graphs import NetworkXBackend
@@ -36,6 +36,7 @@ class Analysis:
         self.import_count = 0
         self.risk_hits = {}
         self.credential_files = set()
+        self.credential_candidates = {}
         self.workspace_patterns = []
 
     def inspect(self, original_path, file, content, eligible):
@@ -47,7 +48,12 @@ class Analysis:
                 text = content.decode('utf-8-sig')
                 if '\x00' not in text:
                     self.credential_files.add(file.id)
-                    self.risk_hits[file.id] = [] if 'ARGUS-CRED-001' in self.settings.disabled_rules else credentials(content, original_path)
+                    from .risks import credential_candidates
+                    if 'ARGUS-CRED-001' not in self.settings.disabled_rules:
+                        records=credential_candidates(content, original_path)
+                        self.credential_candidates[file.id]=records
+                        self.risk_hits[file.id]=sorted({('ARGUS-CRED-001',line) for line,kind,_ in records if kind!='obvious_placeholder'})
+                    else: self.risk_hits[file.id]=[]
             except UnicodeError:
                 pass
         if original_path.endswith('pnpm-workspace.yaml') and content is not None:
@@ -98,6 +104,8 @@ class Analysis:
                     self.manifests[original_path] = {k: parsed.tree[k] for k in ('name', 'main', 'module', 'types', 'exports', 'workspaces') if k in parsed.tree}
                 if 'compilerOptions' in parsed.tree or 'extends' in parsed.tree or original_path.endswith(('tsconfig.json','jsconfig.json')):
                     self.tsconfigs[original_path] = {k: parsed.tree[k] for k in ('compilerOptions', 'extends') if k in parsed.tree}
+        except ParseResourceLimit:
+            self.failures[file.id] = 'analysis_resource_limit'
         except ParseUnavailable:
             self.failures[file.id] = 'grammar_unavailable'
         except (ParseFailure, RecursionError, MemoryError, ValueError):
@@ -106,9 +114,20 @@ class Analysis:
     def finish(self, result):
         evidence, nodes = list(result.evidence), list(result.graph.nodes)
         diagnostics = list(result.diagnostics)
+        file_by_id = {f.id: f for f in result.files}
+        from ..models.credentials import CredentialCandidate, CandidateClassification
+        candidates=[]
+        for fid,records in sorted(self.credential_candidates.items()):
+            file=file_by_id[fid]
+            for line,kind,documentation in records:
+                cid=identity('candidate',fid+':'+str(line)+':'+kind)
+                eid=identity('evidence',cid)
+                evidence.append(Evidence(id=eid,observation='Credential candidate classification: '+kind+'; validity unverified; literal withheld.',
+                    producer='ARGUS-CRED-001',producer_version='1.3.0',confidence=Confidence.MEDIUM,provenance=Provenance.HEURISTIC,
+                    locations=(SourceLocation(path=file.path,start_line=line,start_column=1),)))
+                candidates.append(CredentialCandidate(id=cid,file_id=fid,evidence_ids=(eid,),classification=CandidateClassification(kind),documentation_context=documentation))
         metrics, relationships = [], []
         modules, symbols = [], []
-        file_by_id = {f.id: f for f in result.files}
         module_by_file = {fid: facts.module.id for fid, facts in self.facts.items()}
         resolver = Resolver(self.files, self.manifests, self.tsconfigs, self.workspace_patterns)
         locations = {}
@@ -170,9 +189,19 @@ class Analysis:
             measured[metric.scope_id, metric.name] = metric.value
         from .workspace import WorkspaceFlow
         WorkspaceFlow(self.facts, self.files, resolver).run()
+        from .observations import project
+        semantic_observations=project(self.facts,file_by_id,graph,evidence)
         from .contextual import investigate, attach, relationship_index
         additions, assessments, semantic_gaps = investigate(self.facts, graph, evidence, file_by_id)
+        controlled={'ARGUS-SEC-004','ARGUS-REL-003','ARGUS-AI-001','ARGUS-AI-002'}
         for fid, hits in additions.items():
+            if not semantic_gaps.get(fid):
+                self.risk_hits[fid]=[hit for hit in self.risk_hits.get(fid,()) if hit[0] not in controlled]
+            else:
+                # Explicitly classified operations still override broad syntax candidates.
+                classified={(s.line,k) for s in self.facts[fid].semantic.sites for k in
+                    (('ARGUS-SEC-004',) if s.operation=='database' else ('ARGUS-REL-003',) if s.operation=='http' else ('ARGUS-AI-001','ARGUS-AI-002') if s.operation in ('model','embedding') else ())}
+                self.risk_hits[fid]=[h for h in self.risk_hits.get(fid,()) if (h[1],h[0]) not in classified]
             self.risk_hits.setdefault(fid, []).extend(hits)
         for fid, gaps in sorted(semantic_gaps.items()):
             for gap in sorted(gaps):
@@ -303,8 +332,9 @@ class Analysis:
                 reason='Limited static patterns only; unavailable sub-capabilities remain unreviewed.' if evaluated else 'All registered rules disabled.' if disabled else 'No applicable rule evaluations; unsupported/excluded/failed scope remains unreviewed.',
                 rule_ids=tuple(r.id for r in rules))
         categories=tuple(category_coverage(cat) for cat in Category)
+        from ..diagnostics import consolidate
         return replace(result, modules=tuple(modules), symbols=tuple(sorted(symbols, key=lambda s:s.id)), findings=tuple(sorted(findings,key=lambda f:f.id)),
-            evidence=tuple(sorted(evidence,key=lambda e:e.id)), diagnostics=tuple(diagnostics),
+            credential_candidates=tuple(candidates), semantic_observations=semantic_observations, evidence=tuple(sorted(evidence,key=lambda e:e.id)), diagnostics=consolidate(diagnostics),
             graph=replace(graph, metrics=tuple(metrics) + graph.metrics), limitations=LIMITATIONS + result.limitations[3:],
             coverage=replace(result.coverage, files=tuple(coverage), rules=tuple(rule_coverages), categories=categories, limitations=LIMITATIONS),
             inventory=replace(result.inventory, status=Status.PARTIAL if self.failures else result.inventory.status))

@@ -2,7 +2,7 @@
 import multiprocessing
 import os
 import threading
-from .parsing import parse, ParseFailure, ParseUnavailable
+from .parsing import parse, ParseFailure, ParseUnavailable, ParseResourceLimit
 from .extraction import extract
 from .risks import detect
 
@@ -21,6 +21,8 @@ def _worker(connection, file, content):
         facts = extract(file, parsed)
         hits = detect(parsed)
         connection.send(('ok', facts, hits))
+    except ParseResourceLimit:
+        connection.send(('resource_limit',))
     except ParseUnavailable:
         connection.send(('unavailable',))
     except BaseException:
@@ -38,13 +40,14 @@ def isolated_extract(file, content, timeout=5):
         process.start()
         send.close()
         if not receive.poll(timeout):
-            raise ParseFailure()
+            raise ParseResourceLimit()
         try:
             message = receive.recv()
         except (EOFError, OSError):
             raise ParseFailure() from None
         if message[0] == 'unavailable':
             raise ParseUnavailable()
+        if message[0] == 'resource_limit': raise ParseResourceLimit()
         if message[0] != 'ok':
             raise ParseFailure()
         return message[1:]

@@ -104,3 +104,17 @@ General authorization, Express middleware ordering, database limits, retry/backo
 JS closures/prototypes/getters and scheduling remain unavailable. Existing route and
 provider tables above describe base syntactic extraction; semantic refinements and
 all exclusions are in [Milestone 5.1](milestone-5.1.md). No runtime safeguard proof.
+
+## Milestone 6.1 capability refinements
+
+| Capability | Python | JavaScript / TypeScript / JSX / TSX |
+| --- | --- | --- |
+| Constructed OpenAI Responses operation recognition | Tested aliases, module instances, imported instances, simple instance attributes, resolved wrappers | Existing bounded lowering plus exact constructed OpenAI receiver metadata; partial |
+| Timeout applicability | Tested requests / HTTPX, documented defaults, positive float/int settings, complete HTTPX phase objects, request overrides, disabled/unknown settings | Unavailable; no new HTTP timeout support claimed |
+| SQL value discrimination | Tested constant construction, builtin integer conversion, joins/reassignment, local/imported flow, unknown/untrusted inputs, simple str.format, parameter argument observation for sqlite3/psycopg cursor APIs | Constructed-query candidates retained; coercion/sanitizer discrimination unavailable |
+| Independent semantic observations | Tested bounded arguments/returns/iteration, timeout state, SDK identity, authentication registration, invalidation and relevant call relationships | Restricted lowering only; gaps remain explicit |
+| General authorization, database limits, retry enforcement | Unavailable | Unavailable |
+
+Parser availability remains independent of every capability. Authentication
+registration does not establish effective authentication, authorization or caller
+protection. See the exact regression scope in `tests/test_corrections_m61.py`.

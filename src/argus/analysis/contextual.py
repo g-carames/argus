@@ -79,7 +79,7 @@ def investigate(facts_by_file, graph, evidence, files):
             if site.operation in ('model','embedding') and site.loops: keys.append('ARGUS-AI-002')
             if site.operation=='database' and site.loops: keys.append('ARGUS-COST-001')
             if site.operation=='execution' and site.tainted: keys.append('ARGUS-SEC-001')
-            if site.operation=='database' and site.dynamic_sql: keys.append('ARGUS-SEC-004')
+            if site.operation=='database' and site.dynamic_sql and site.sql_value not in ('constant','integer'): keys.append('ARGUS-SEC-004')
             if not site.expanded:
                 if site.operation=='http': keys.append('ARGUS-REL-003')
                 if site.operation=='model': keys.append('ARGUS-AI-001')
@@ -94,7 +94,9 @@ def investigate(facts_by_file, graph, evidence, files):
             # De-duplicate graph and interpreter contexts conservatively.
             applicable=bool(bounded) and len(bounded)==len(contexts) and not gaps[fid]
             configured=any(s.configuration_observed for s in contexts)
-            state=M.ESTABLISHED if applicable else M.PARTIAL if bounded or limited else M.UNVERIFIED if configured else M.UNDETERMINED if gaps[fid] else M.NONE
+            state=M.ESTABLISHED if applicable or limited and len(limited)==len(contexts) and not gaps[fid] else M.PARTIAL if bounded or limited else M.UNVERIFIED if configured else M.INCOMPLETE if gaps[fid] else M.NONE
+            if not bounded and not limited and not configured and any(s.operation in ('model','embedding') and not s.receiver_resolved for s in contexts): state=M.UNDETERMINED
+            if key in ('ARGUS-SEC-001','ARGUS-SEC-004'): state=M.UNSUPPORTED
             loc=SourceLocation(path=files[fid].path,start_line=line,start_column=1)
             eid=identity('evidence',fid+':context:'+key+':'+str(line))
             observation='Contextual investigation: '+str(len(contexts))+' statically analyzed operation contexts; '
@@ -117,7 +119,7 @@ def investigate(facts_by_file, graph, evidence, files):
             guards=(Safeguard(kind='iteration_domain_bound',evidence_ids=(eid,),applicability=state,
                 reason='Literal collection/range/slice bound in listed contexts; mutation and unknown calls invalidate known collection bounds.'),) if bounded else (Safeguard(kind='explicit_limit_configuration',evidence_ids=(eid,),applicability=M.UNVERIFIED,reason='Configuration supplied but a positive numerical limit could not be established.'),) if configured else ()
             if limited:
-                guards+=(Safeguard(kind='positive_operation_limit',evidence_ids=(eid,),applicability=M.PARTIAL,
+                guards+=(Safeguard(kind='positive_operation_limit',evidence_ids=(eid,),applicability=state,
                     reason='A positive numerical token/timeout limit applies in the listed contexts; unknown/external callers and runtime changes remain unverified.'),)
             for guard in framework:
                 guards+=(Safeguard(kind=guard,evidence_ids=(eid,),applicability=M.UNVERIFIED,
@@ -149,7 +151,7 @@ def attach(finding, fid, assessments, related_index, gaps):
     assessment=assessments.get(key)
     if assessment is None:
         related=related_index.get((finding.locations[0].path,finding.locations[0].start_line),())
-        assessment=Assessment(initial_pattern=finding.title,mitigation_state=M.UNDETERMINED,
+        assessment=Assessment(initial_pattern=finding.title,mitigation_state=M.INCOMPLETE if gaps.get(fid) else M.UNSUPPORTED,
             supporting_evidence_ids=finding.evidence_ids,
             call_path_relationship_ids=tuple(r.id for r in related),
             unresolved_relationship_ids=tuple(r.id for r in related if r.resolution in (Resolution.UNRESOLVED,Resolution.AMBIGUOUS)),

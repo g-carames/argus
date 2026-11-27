@@ -100,3 +100,35 @@ agent budget or sanitizer/redaction verification is claimed. Observations remain
 separate from mitigation and severity. Actual budget/unsupported-flow diagnostics
 and unavailable contextual capabilities appear in **Not Reviewed Portions of the
 Code**, including scans with no findings. No semantic completeness claim.
+
+## Corrective release 6.1
+
+- Semantic evidence is now independent of findings, but is deliberately selective;
+  absence of an observation is not evidence of absence. Budget exhaustion and
+  unsupported control flow remain prominently disclosed in coverage diagnostics.
+- Workspace interpretation still selects at most 128 modules by sorted path. No
+  dependency-directed scheduler or partitioned interpreter is implemented. The
+  large laboratory therefore remains substantially outside cross-file semantic scope.
+- SDK recognition establishes static import/construction bindings, not installed
+  SDK versions or runtime identity. Mocks, monkey patching, injected clients,
+  subclass behavior and dynamic wrappers remain unresolved. Imported suffix
+  candidates are possible inferences, never genuine-provider proof.
+- HTTPX defaults are documented library assumptions, not measured deployment
+  behavior. Inactivity timeouts do not bound complete operations, retries or cost.
+  With/context-manager controls remain unsupported; no universal framework timeout
+  or general infrastructure safeguard inference exists.
+- Python integer-only interpolation is assessed only on established builtin flow
+  and execution paths reaching the sink; unknown callers remain separate. SQL
+  construction is not proof of vulnerability. Dialect/driver semantics, identifier
+  quoting, arbitrary sanitization, broader string methods and general taint analysis
+  remain unverified. JS coercion refinements are unavailable.
+- Placeholder classification uses an intentionally narrow value grammar. Real
+  credentials can resemble placeholders and synthetic values can resemble real
+  credentials. Documentation context never dismisses a candidate. Values and
+  value-derived hashes are absent from classification outputs. Validity, history,
+  reuse, lifecycle persistence and revocation verification remain unavailable.
+- Known traversal/native-parser timeout/memory budget events are resource limits;
+  unclassified native process deaths remain failures. Usable partial reports can
+  exit 0; this is not an analytical pass or certification.
+- No held-out benchmark was accessed or run. Independent baseline aggregates are
+  scope-specific synthetic results; no post-correction benchmark improvement is claimed.

@@ -96,3 +96,32 @@ agent budget or sanitizer/redaction verification is claimed. Observations remain
 separate from mitigation and severity. Actual budget/unsupported-flow diagnostics
 and unavailable contextual capabilities appear in **Not Reviewed Portions of the
 Code**, including scans with no findings. No semantic completeness claim.
+
+## Corrective release scope and CLI status (6.1)
+
+Rule IDs and disable/threshold settings remain compatible. Updated rules are
+version 1.3.0: AI-001/002, REL-003, SEC-004 and CRED-001. See the generated catalog
+for exact methodology. The observation projection operates independently of enabled
+risk rules; disabling a rule does not disable parsing or semantic evidence. No new
+configurable budget options are introduced; the existing internal semantic budgets
+remain fixed for CLI scans (128 modules, depth 4, 128 contexts, 2,048 CFG nodes,
+4,096 transfer iterations, 64 paths, 256 summary expansions, receiver depth 8).
+The independent observation projection permits 4,096 observations per file.
+
+CLI exit contract:
+
+- `0`: report produced with no actual inspection failure; expected unsupported
+  analysis, unresolved behavior, partial semantics and known resource exhaustion
+  can be present. Findings do not determine exit status.
+- `1`: report produced with actual malformed-input/parser/analysis or filesystem
+  inspection failures. Other useful results may still be present.
+- `2`: invalid user input/configuration or controlled operational errors such as
+  unavailable input and output failures (stable error codes distinguish them).
+- `70`: unexpected internal failure.
+- `130`: cancellation.
+
+This changes the earlier behavior where any diagnostic caused exit 1. Always read
+coverage, grouped diagnostics and **Not Reviewed Portions of the Code**; exit 0 is
+not complete analysis or a safety claim. File statuses may remain failed where
+resource exhaustion prevented extraction, while the diagnostic class identifies
+resource exhaustion and the usable-report exit remains 0.

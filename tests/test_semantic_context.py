@@ -130,7 +130,7 @@ def test_taint_known_return_and_unknown_sanitizer():
 def test_authentication_naming_is_not_a_safeguard(tmp_path):
     for gate in ('authorize(value)','safe_execute(value)','validate(value)'):
         fs=findings(tmp_path,gate+'\neval(value)','ARGUS-SEC-001')
-        assert fs[0].assessment.mitigation_state==M.UNDETERMINED
+        assert fs[0].assessment.mitigation_state==M.UNSUPPORTED
         assert not fs[0].assessment.safeguards
 
 
@@ -170,7 +170,7 @@ def test_unknown_and_conflicting_lattice():
 
 def test_unsupported_controls_diagnostics(tmp_path):
     fs=findings(tmp_path,'import openai\ntry:\n for x in xs:\n  '+MODEL+'\nexcept Exception:\n pass')
-    assert fs and fs[0].assessment.mitigation_state==M.UNDETERMINED
+    assert fs and fs[0].assessment.mitigation_state==M.INCOMPLETE
     assert any(d.code=='semantic_analysis_incomplete' for d in scan(tmp_path).diagnostics)
 
 

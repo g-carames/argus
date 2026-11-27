@@ -61,23 +61,23 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 - Limitations and false positives: Initial syntactic matching; contextual supplement applies only where explicitly documented. Aliases supported for Python imports and JS child_process named imports. General shadowing, dynamic indirect calls, arbitrary wrappers, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere.
 - Associated automated tests: `tests/test_risk_rules.py` (parameterized positive, negative and disabled cases); `tests/test_analysis_graphs.py` and `tests/test_analysis_parsing.py` cover measurement primitives.
 
-## ARGUS-SEC-004 — Dynamically constructed SQL
+## ARGUS-SEC-004 — Dynamic SQL with unresolved string influence
 
-- Version: 1.2.0; implementation status: implemented.
+- Version: 1.3.0; implementation status: implemented.
 - Primary category: security; secondary categories: none.
 - Languages: python, javascript, typescript, jsx, tsx.
 - Required capabilities: security_rules.
 - Evaluated parameter: `occurrence_sec_004`; default threshold: `0`; strict greater-than.
-- Methodology: execute/executemany/query first argument is a Python f-string, addition or percent expression, or JS template interpolation/addition.
-- Contextual investigation: Python dynamically constructed SQL flags propagate through simple assignments, arguments and returns, including possible branch joins. Parameterized literals produce no syntax candidate. Unknown sanitizer calls do not establish safety; no SQL dialect, driver or escaping effectiveness verification. Milestone 5.1 extends this with bounded uniquely resolved cross-file function/constant/alias/re-export flow, keyword-only defaults, unknown external-argument entries, and separate JS-family restricted syntax lowering. Simple Python receiver/constructor/factory identities and requests.Session/httpx constructor timeouts are tracked; request overrides take precedence. Python numerical min/max clamps and monotonic final-increment counters can bound per-invocation domains. Early returns join rather than discard alternate values. Async suspension, mutation, unknown calls, recursion and exhausted budgets cannot establish safety. Python FastAPI input/Flask request influence and narrow Flask-Login/FastAPI bearer-presence observations are retained without authorization or runtime-enforcement claims. See docs/milestone-5.1.md and tests/test_semantic_cross_file.py for exact exclusions and paired tests.
-- Contextual tests: `tests/test_semantic_context.py`.
+- Methodology: execute/executemany/query candidates: constructed SQL is an observation, not proof of vulnerability. Python constant-only construction and statically established builtin-int flows produce semantic observations without injection candidates; ambiguous/untrusted strings, dynamic identifiers and unknown sanitizers retain candidates. Reassignments and joins preserve uncertainty; one constrained caller does not protect unknown entries. Recognize parameter arguments on resolved sqlite3/psycopg/psycopg2 cursor APIs; binding does not sanitize separately constructed query text. No general taint, SQL dialect, identifier quoting or sanitizer verification.
+- Contextual investigation: execute/executemany/query candidates: constructed SQL is an observation, not proof of vulnerability. Python constant-only construction and statically established builtin-int flows produce semantic observations without injection candidates; ambiguous/untrusted strings, dynamic identifiers and unknown sanitizers retain candidates. Reassignments and joins preserve uncertainty; one constrained caller does not protect unknown entries. Recognize parameter arguments on resolved sqlite3/psycopg/psycopg2 cursor APIs; binding does not sanitize separately constructed query text. No general taint, SQL dialect, identifier quoting or sanitizer verification. Independent typed semantic observations remain available without findings. See docs/milestone-6.1.md.
+- Contextual tests: `tests/test_corrections_m61.py`.
 - Default severity: medium; confidence criteria: medium: exact named syntax observed; runtime binding, exploitation and omitted safeguards unverified.
 - Why it matters: Observed static patterns may expose data, execution boundaries or resources. Cost consequences are potential, not measured expense.
 - Positive example: cursor.execute(f"SELECT {value}").
 - Negative example: cursor.execute("SELECT ?", (value,)).
 - Remediation: Review the observed boundary; use safe APIs, explicit validated limits and appropriate batching or error handling.
 - Validation: Re-scan the same scope and verify the risky pattern is removed or document a reviewed exception.
-- Limitations and false positives: Initial syntactic matching; contextual supplement applies only where explicitly documented. Aliases supported for Python imports and JS child_process named imports. General shadowing, dynamic indirect calls, arbitrary wrappers, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere. Contextual refinement is bounded and partial; see docs/milestone-5.1.md for exact supported scopes and budgets.
+- Limitations and false positives: Bounded static scope only; runtime behavior, arbitrary dispatch and general safeguards remain unverified. Exhausted budgets remain disclosed. SQL constant/integer refinement is Python-specific; JS-family coercion remains unresolved. No independent reevaluation metrics are claimed.
 - Associated automated tests: `tests/test_risk_rules.py` (parameterized positive, negative and disabled cases); `tests/test_analysis_graphs.py` and `tests/test_analysis_parsing.py` cover measurement primitives.
 
 ## ARGUS-SEC-005 — Legacy cryptographic digest

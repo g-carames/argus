@@ -68,3 +68,8 @@ Seven existing rules have Milestone 5 contextual refinements, documented in thei
 generated catalog entries and [contextual methodology](../milestone-5.md). Other
 pattern rules retain their observation with undetermined contextual applicability;
 structural measurements retain their existing scope. There are still 24 rules.
+
+Milestone 6.1 updates AI-001/002, REL-003, SEC-004 and CRED-001 to version 1.3.0.
+The central registry and generated category pages describe the corrective scope;
+[release validation](../milestone-6.1.md) separates regression tests from independent
+evaluation. Observations do not create findings or alter disabled-rule behavior.

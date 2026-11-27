@@ -133,7 +133,7 @@ def extract(file, parsed):
         if file.language in PRIMARY:
             # Shared declarative import/export query across JS/TS/JSX/TSX.
             query = Query(grammar(file.language), '(import_statement) @dependency\n(export_statement source: (string)) @dependency')
-            for n in QueryCursor(query).captures(root).get('dependency', []):
+            for n in sorted(QueryCursor(query).captures(root).get('dependency', []),key=lambda n:n.start_byte):
                 source = n.child_by_field_name('source')
                 ref = text(source)[1:-1] if source else None
                 phases = ['type_only'] if any(c.type == 'type' for c in n.children) else ['runtime']
@@ -199,13 +199,13 @@ def extract(file, parsed):
                 continue
             if not continuation:
                 if stripped.split()[0].upper() not in allowed:
-                    from .parsing import ParseFailure
-                    raise ParseFailure()
+                    from .parsing import ParseResourceLimit
+                    raise ParseResourceLimit()
                 count += 1
             continuation = stripped.endswith('\\')
         if continuation:
-            from .parsing import ParseFailure
-            raise ParseFailure()
+            from .parsing import ParseResourceLimit
+            raise ParseResourceLimit()
         facts.declarations['docker_instruction_count'] = count
         facts.limitations = ('Dockerfile instruction recognition only; arguments, heredocs, stages and embedded shell are not semantically validated.',)
     from .relationships import collect

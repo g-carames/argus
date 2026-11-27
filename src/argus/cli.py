@@ -88,7 +88,7 @@ def main(argv=None):
                   f'{len(result.coverage.inventory_gaps)} gaps; {len(result.findings)} findings; analysis partial', file=sys.stderr)
         if result.execution.cancelled:
             return 130
-        if result.diagnostics or any(g.status.value == 'failed' for g in result.coverage.inventory_gaps):
+        if any(d.classification.value == 'parser_or_analysis_failure' for d in result.diagnostics) or any(g.status.value == 'failed' and not g.reason_code.startswith('resource_limit.') for g in result.coverage.inventory_gaps):
             print('argus: inspection limitations recorded in report', file=sys.stderr)
             return 1
         return 0

@@ -187,3 +187,9 @@ flow analysis. The linked implementation scope lists remaining approved work;
 general framework authorization, Express middleware verification, retry/backoff
 and database-limit enforcement remain unavailable. The frozen independent corpus
 has not been inspected or evaluated for this implementation.
+
+[Milestone 6.1 corrective release](docs/milestone-6.1.md) documents SDK operation,
+timeout, SQL and credential classification corrections, independent semantic
+observations (schema 1.4.0), diagnostic exit-code changes and release validation.
+The [versioned rule catalog](docs/rules/index.md) and
+[capability matrix](docs/language-support.md) define the supported scope.

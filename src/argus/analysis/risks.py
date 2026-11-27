@@ -2,34 +2,50 @@
 import ast
 import re
 from .parsing import PRIMARY, walk
+from .operations import MODEL_SUFFIXES, EMBEDDING_SUFFIXES
 
 # Quoted values only: environment lookups and identifiers are not secrets.
 ASSIGNMENT = re.compile(r'''(?i)["']?\b(?:[a-z_][a-z0-9_]*_)?(?:password|passwd|api_key|apikey|secret|secret_key|access_token|auth_token|token)\b["']?\s*[:=]\s*["']([^"'\r\n]{8,})["']''')
-PLACEHOLDER = re.compile(r'(?i)^(?:\$\{|<|your[_ -]|example|placeholder|changeme|test[_-]|dummy|\*{3}|\[redacted\])')
 TOKEN = re.compile(r'(?:sk-(?:proj-|ant-)?[A-Za-z0-9_-]{20,}|AIza[A-Za-z0-9_-]{30,}|(?:AKIA|ASIA)[A-Z0-9]{16}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{20,})')
 
 
-def credentials(content, path=""):
+def placeholder(value):
+    """Value-only evidence, never filenames/comments or broad test/mock prefixes."""
+    return bool(re.fullmatch(r'(?i)(?:\$\{[^}]+\}|<[^>]+>|\[redacted\]|\*{3,}|(?:your[_ -])?(?:api[_ -]?key|token|password|secret)(?:[_ -]here)?|changeme|placeholder(?:[_ -].*)?|example(?:[_ -](?:key|token|secret|password))?|dummy(?:[_ -](?:key|token|secret|password))?|sk-(?:your[_-]?api[_-]?key|placeholder|test[_-]?key)(?:[_-]here)?)',value))
+
+
+def credential_candidates(content, path=""):
+    """Source-free (line, class, documentation context) records, bounded by input."""
     try:
-        text = content.decode('utf-8-sig')
+        text=content.decode('utf-8-sig')
     except UnicodeError:
         return []
-    if '\x00' in text:
-        return []
-    hits = []
-    # Generic browser keys require value semantics AND request-use context.
-    # No inference from a generic variable name or a source comment alone.
-    browser_context = path.endswith(('.js','.jsx','.ts','.tsx')) and bool(re.search(r'\bfetch\s*\(', text)) and bool(re.search(r'JSON\.stringify\s*\([^;]*\bkey\b',text))
-    generic = re.compile(r'''\b(?:const|let|var)\s+key\s*=\s*["']([^"'\r\n]{16,})["']''')
-    for line, value in enumerate(text.splitlines(), 1):
-        assignments = ASSIGNMENT.finditer(value)
-        env = path.rsplit('/',1)[-1].startswith('.env') and re.fullmatch(r'\s*[A-Za-z_][A-Za-z0-9_]*(?:KEY|SECRET|TOKEN|PASSWORD)\s*=\s*([^\s#\"\']{8,})\s*', value)
-        env_secret = bool(env) and not PLACEHOLDER.search(env[1])
-        browser_secret = browser_context and any(not PLACEHOLDER.search(m[1]) and re.search(r'(?i)(?:secret|api[-_]?key|access[-_]?token|browser[-_]?key)',m[1]) for m in generic.finditer(value))
-        if (browser_secret or env_secret or TOKEN.search(value) or re.search(r'-----BEGIN (?:RSA |EC |OPENSSH |DSA |ENCRYPTED )?PRIVATE KEY-----', value)
-            or any(not PLACEHOLDER.search(m[1]) for m in assignments)):
-            hits.append(('ARGUS-CRED-001', line))
-    return hits
+    if '\x00' in text: return []
+    documentation=path.endswith(('.md','.rst','.txt'))
+    browser_context=path.endswith(('.js','.jsx','.ts','.tsx')) and bool(re.search(r'\bfetch\s*\(',text)) and bool(re.search(r'JSON\.stringify\s*\([^;]*\bkey\b',text))
+    generic=re.compile(r"\b(?:const|let|var)\s+key\s*=\s*[\"']([^\"'\r\n]{16,})[\"']")
+    records=[]
+    for line,value in enumerate(text.splitlines(),1):
+        candidates=[m[1] for m in ASSIGNMENT.finditer(value)]
+        env=re.fullmatch(r'\s*[A-Za-z_][A-Za-z0-9_]*(?:KEY|SECRET|TOKEN|PASSWORD)\s*=\s*([^\s#\"\']{8,})\s*',value) if path.rsplit('/',1)[-1].startswith('.env') else None
+        if env: candidates.append(env[1])
+        if browser_context:
+            candidates.extend(m[1] for m in generic.finditer(value) if re.search(r'(?i)(?:secret|api[-_]?key|access[-_]?token|browser[-_]?key)',m[1]))
+        recognized=list(TOKEN.finditer(value))
+        classes=set()
+        for candidate in candidates:
+            classes.add('obvious_placeholder' if placeholder(candidate) else 'recognized_pattern' if TOKEN.search(candidate) else 'uncertain_candidate' if len(candidate)<12 else 'plausible_assignment')
+        # Token matches inside an explicit placeholder do not override its classification.
+        for match in recognized:
+            if not any(match[0] in candidate and placeholder(candidate) for candidate in candidates):
+                classes.add('recognized_pattern')
+        if re.search(r'-----BEGIN (?:RSA |EC |OPENSSH |DSA |ENCRYPTED )?PRIVATE KEY-----',value): classes.add('recognized_pattern')
+        for kind in sorted(classes): records.append((line,kind,documentation))
+    return records
+
+
+def credentials(content,path=""):
+    return sorted({('ARGUS-CRED-001',line) for line,kind,_ in credential_candidates(content,path) if kind!='obvious_placeholder'})
 
 
 def detect(parsed):
@@ -86,8 +102,8 @@ def detect(parsed):
                 query = target.rsplit('.',1)[-1] in ('execute','executemany','query')
                 if query and n.args and isinstance(n.args[0], (ast.JoinedStr, ast.BinOp)): hit('SEC-004', n.lineno)
                 if query and loops: hit('COST-001', n.lineno)
-                model = provider and target.endswith(('.chat.completions.create','.completions.create','.messages.create','.generate_content','.generateContent'))
-                embedding = provider and target.endswith(('.embeddings.create','.embed_content','.embedContent'))
+                model = provider and target.endswith(MODEL_SUFFIXES)
+                embedding = provider and target.endswith(EMBEDDING_SUFFIXES)
                 if model and not expanded and not {'max_tokens','max_completion_tokens','max_output_tokens','generationConfig','config'} & kwargs.keys(): hit('AI-001', n.lineno)
                 if (model or embedding) and loops: hit('AI-002', n.lineno)
             for child in ast.iter_child_nodes(n): visit(child, loops, asynchronous)
@@ -134,8 +150,8 @@ def detect(parsed):
                     if arg.type == 'binary_expression' or arg.type == 'template_string' and any(c.type == 'template_substitution' for c in arg.named_children): hit('SEC-004',line)
                 if query and loops: hit('COST-001',line)
                 if target == 'crypto.createHash' and children and text(children[0]).strip('\"\'').lower() in ('md5','sha1'): hit('SEC-005',line)
-                model = provider and target.endswith(('.chat.completions.create','.completions.create','.messages.create','.generateContent','.generate_content'))
-                embedding = provider and target.endswith(('.embeddings.create','.embedContent','.embed_content'))
+                model = provider and target.endswith(MODEL_SUFFIXES)
+                embedding = provider and target.endswith(EMBEDDING_SUFFIXES)
                 keys = set()
                 expanded = False
                 for arg in children:

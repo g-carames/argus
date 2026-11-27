@@ -5,8 +5,11 @@ Only positive evidence can establish a safeguard; naming is never validation.
 """
 import ast
 import copy
+import re
+import math
 from dataclasses import dataclass, field, replace
 from .parsing import PRIMARY
+from .operations import resolve_operation, MODEL_SUFFIXES, EMBEDDING_SUFFIXES, HTTP_TARGETS
 
 
 @dataclass(frozen=True)
@@ -28,17 +31,22 @@ class Budgets:
 @dataclass(frozen=True)
 class Value:
     state: str = 'unknown'  # definite, possible, conflicting, unknown
-    number: int | None = None
+    number: int | float | None = None
     size: int | None = None
     taint: bool = False
     dynamic_sql: bool = False
     receiver: str | None = None
-    timeout: int | None = None
+    constructed: bool = False
+    timeout: int | float | None = None
+    timeout_state: str = "unknown"
+    literal_string: bool = False
+    sql_identifier: bool = False
+    sql_value: str = "unknown"  # constant, integer, unknown; never stores query text
     origins: tuple = ()
     attributes: tuple = ()
     sensitive: bool = False
-    minimum: int | None = None
-    maximum: int | None = None
+    minimum: int | float | None = None
+    maximum: int | float | None = None
     object_id: tuple = ()
     provenance_truncated: bool = False
 
@@ -50,7 +58,11 @@ class Value:
                      number=self.number if self.number == other.number else None,
                      taint=self.taint or other.taint, dynamic_sql=self.dynamic_sql or other.dynamic_sql,
                      receiver=self.receiver if self.receiver == other.receiver else None,
+                     constructed=self.constructed and other.constructed,
                      timeout=self.timeout if self.timeout == other.timeout else None,
+                     timeout_state=self.timeout_state if self.timeout_state == other.timeout_state else "unknown",
+                     sql_value=self.sql_value if self.sql_value == other.sql_value else "unknown",
+                     literal_string=self.literal_string and other.literal_string, sql_identifier=self.sql_identifier or other.sql_identifier,
                      origins=tuple(sorted(set(self.origins + other.origins)))[:32],
                      provenance_truncated=self.provenance_truncated or other.provenance_truncated or len(set(self.origins+other.origins))>32,
                      attributes=self.attributes if self.attributes==other.attributes else (),
@@ -89,6 +101,11 @@ class Site:
     sensitive: bool = False
     receiver_resolved: bool = False
     safeguards: tuple = ()
+    timeout_state: str = "unknown"
+    sql_value: str = "unknown"
+    parameter_binding: bool = False
+    sql_identifier: bool = False
+    operation_id: str | None = None
 
 
 @dataclass
@@ -114,14 +131,25 @@ def collect(file, parsed, facts, budgets=Budgets()):
     return flow.run()
 
 
+def identifier_interpolation(node):
+    if getattr(node,'argus_sql_identifier',False): return True
+    if not isinstance(node,ast.JoinedStr): return False
+    return any(isinstance(left,ast.Constant) and isinstance(left.value,str) and
+        re.search(r'(?i)\b(?:FROM|JOIN|UPDATE|INTO|TABLE|ORDER\s+BY|GROUP\s+BY)\s*$',left.value) and
+        isinstance(right,ast.FormattedValue) for left,right in zip(node.values,node.values[1:]))
+
+
 def sanitized(tree):
     """Copy a bounded syntax tree, discarding all source string/byte literals."""
     tree = copy.deepcopy(tree)
     for n in ast.walk(tree):
+        if identifier_interpolation(n): n.argus_sql_identifier=True
         if isinstance(n,ast.Dict):
             n.keys=[ast.Name(id=k.value,ctx=ast.Load()) if isinstance(k,ast.Constant) and k.value in ('timeout','max_tokens','max_completion_tokens','max_output_tokens','config','generationConfig','maxOutputTokens','auto_error') else k for k in n.keys]
         if isinstance(n, ast.Constant) and type(n.value) not in (int, float, bool, type(None)):
+            n.argus_string = isinstance(n.value,str)
             n.value = None
+            n.argus_literal = True
     return tree
 
 
@@ -182,13 +210,18 @@ class PythonFlow:
         if n is None: return UNKNOWN
         if not self.spend('iterations'): return UNKNOWN
         if isinstance(n,ast.Constant):
+            if n.value is None: return Value('definite', timeout_state='unknown' if getattr(n,'argus_literal',False) else 'disabled', sql_value='constant',literal_string=getattr(n,'argus_string',False))
+            if type(n.value) is float:
+                if not math.isfinite(n.value): return Value('definite',timeout_state='invalid',sql_value='constant')
+                return Value('definite', number=n.value, timeout_state='explicit' if n.value>0 else 'invalid', sql_value='constant')
             # Never retain strings, booleans or credential-derived numerical values.
-            return Value('definite',number=n.value,minimum=n.value,maximum=n.value) if type(n.value) is int and abs(n.value)<=10**9 else Value('definite')
+            return Value('definite',number=n.value,minimum=n.value,maximum=n.value,sql_value='integer') if type(n.value) is int and abs(n.value)<=10**9 else Value('definite', sql_value='constant',literal_string=isinstance(n.value,str))
         if isinstance(n,ast.Name):
             if n.id in env: return env[n.id]
             if n.id in self.imported: return self.imported[n.id]
             if n.id in self.functions and len(self.functions[n.id])==1:
                 return Value('definite',receiver='function:'+n.id)
+            if n.id in self.aliases: return Value('definite',receiver=self.aliases[n.id])
             return UNKNOWN
         if isinstance(n,ast.Attribute):
             current=n; depth=0
@@ -220,7 +253,7 @@ class PythonFlow:
             return Value('definite',attributes=tuple(items),taint=any(v.taint for _,v in items),sensitive=any(v.sensitive for _,v in items))
         if isinstance(n,(ast.List,ast.Tuple,ast.Set)):
             values=[self.evaluate(x,env) for x in n.elts]
-            return Value('definite',size=None if any(isinstance(x,ast.Starred) for x in n.elts) else len(values),taint=any(v.taint for v in values),sensitive=any(v.sensitive for v in values))
+            return Value('definite',timeout_state='requests_pair' if isinstance(n,ast.Tuple) and len(values)==2 and all(v.number is not None and v.number>0 for v in values) else 'unknown',sql_value='constant' if all(v.sql_value in ('constant','integer') for v in values) else 'unknown',size=None if any(isinstance(x,ast.Starred) for x in n.elts) else len(values),taint=any(v.taint for v in values),sensitive=any(v.sensitive for v in values))
         if isinstance(n,(ast.JoinedStr,ast.BinOp)):
             children=[self.evaluate(x,env) for x in ast.iter_child_nodes(n) if not isinstance(x,ast.operator)]
             if isinstance(n,ast.BinOp) and isinstance(n.op,ast.Add) and len(children)==2:
@@ -228,22 +261,27 @@ class PythonFlow:
                 if a.size is not None and b.size is not None:
                     return Value('definite',size=a.size+b.size,taint=a.taint or b.taint)
                 if a.number is not None and b.number is not None and abs(a.number+b.number)<=10**9:
-                    return Value('definite',number=a.number+b.number,taint=a.taint or b.taint)
-            return Value('possible',taint=any(v.taint for v in children),dynamic_sql=True,sensitive=any(v.sensitive for v in children),origins=tuple(sorted({o for v in children for o in v.origins}))[:32])
-        if isinstance(n,ast.FormattedValue): return self.evaluate(n.value,env)
+                    return Value('definite',number=a.number+b.number,sql_value='integer' if type(a.number) is int and type(b.number) is int else 'constant',taint=a.taint or b.taint)
+            return Value('possible',sql_identifier=identifier_interpolation(n) or any(v.sql_identifier for v in children),sql_value='constant' if all(v.sql_value in ('constant','integer') for v in children) else 'unknown',taint=any(v.taint for v in children),dynamic_sql=True,sensitive=any(v.sensitive for v in children),origins=tuple(sorted({o for v in children for o in v.origins}))[:32])
+        if isinstance(n,ast.FormattedValue):
+            value=self.evaluate(n.value,env)
+            if n.format_spec is not None:
+                spec=self.evaluate(n.format_spec,env)
+                if spec.sql_value not in ('constant','integer'): return replace(value,sql_value='unknown',taint=value.taint or spec.taint)
+            return value
         if isinstance(n,ast.Subscript):
             base=self.evaluate(n.value,env)
             if self.name(n.value)=='os.environ': return Value('possible',sensitive=True)
             if isinstance(n.slice,ast.Slice) and n.slice.lower is None and n.slice.step is None:
                 high=self.evaluate(n.slice.upper,env).number
-                if high is not None and high>=0:
+                if type(high) is int and high>=0:
                     return Value('definite',size=min(base.size,high) if base.size is not None else high,taint=base.taint)
             return Value(taint=base.taint)
         if isinstance(n,ast.Await):
             value=self.evaluate(n.value,env)
-            self.invalidate(env)
+            self.invalidate(env,n.lineno)
             self.gaps.add('semantic_async_scheduling_unresolved')
-            return replace(value,size=None,attributes=(),timeout=None)
+            return replace(value,size=None,attributes=(),timeout=None,timeout_state='unknown')
         if isinstance(n,ast.IfExp):
             if not self.spend('paths'): return UNKNOWN
             return self.evaluate(n.body,env.copy()).join(self.evaluate(n.orelse,env.copy()))
@@ -258,6 +296,8 @@ class PythonFlow:
             while isinstance(root,ast.Attribute): root=root.value
             if isinstance(root,ast.Name) and root.id in env:
                 target='@unresolved.'+self.raw_name(n.func)
+        if function_value.receiver and not function_value.receiver.startswith(('function:','function@')):
+            target=function_value.receiver
         bound=1
         for size in self.loop_bounds:
             if size is None: bound=None; break
@@ -265,13 +305,31 @@ class PythonFlow:
         self.result.sites.append(Site(n.lineno,self.owner,'call',len(self.loop_bounds),bound if self.loop_bounds else None,context=self.context,conditional=self.conditional))
         args=[self.evaluate(a,env) for a in n.args]
         kwargs={k.arg:self.evaluate(k.value,env) for k in n.keywords}
-        if self.language=='python' and target in ('range','builtins.range') and target not in env and target not in self.functions and not kwargs and 1<=len(args)<=3 and all(v.number is not None for v in args):
+        if self.language=='python' and target in ('range','builtins.range') and target not in env and target not in self.functions and not kwargs and 1<=len(args)<=3 and all(type(v.number) is int for v in args):
             try: return Value('definite',size=len(range(*(v.number for v in args))))
             except (ValueError,OverflowError): return UNKNOWN
-        if target in ('range','builtins.range') and self.language=='python' and target not in env and target not in self.functions and len(args)==1 and not kwargs and args[0].maximum is not None:
+        if target in ('range','builtins.range') and self.language=='python' and target not in env and target not in self.functions and len(args)==1 and not kwargs and type(args[0].maximum) is int:
             return Value('possible',size=max(0,args[0].maximum),taint=args[0].taint)
         if self.language=='python' and target=='len' and target not in env and target not in self.functions and len(args)==1: return Value('definite',number=args[0].size)
         if self.language=='python' and target in ('input','builtins.input') and target not in env and target not in self.functions: return Value('possible',taint=True)
+        if self.language=='python' and target in ('int','builtins.int') and target not in env and target not in self.functions and target not in self.classes and len(args)==1 and not kwargs:
+            return Value('definite',sql_value='integer',origins=args[0].origins)
+        if isinstance(n.func,ast.Attribute) and n.func.attr=='format' and receiver.literal_string:
+            return Value('possible',dynamic_sql=True,literal_string=True,
+                sql_value='constant' if all(v.sql_value in ('constant','integer') for v in args+list(kwargs.values())) else 'unknown',
+                taint=any(v.taint for v in args+list(kwargs.values())),origins=receiver.origins,
+                sql_identifier=receiver.sql_identifier)
+        if target in ('unittest.mock.Mock','unittest.mock.MagicMock','unittest.mock.AsyncMock'):
+            return Value('definite',receiver='known_mock',constructed=True)
+        if target in ('sqlite3.connect','psycopg.connect','psycopg2.connect'):
+            return Value('definite',receiver=target)
+        if target in ('sqlite3.connect.cursor','psycopg.connect.cursor','psycopg2.connect.cursor'):
+            return Value('definite',receiver=target)
+        if target=='httpx.Timeout':
+            default=args[0] if args else kwargs.get('timeout',UNKNOWN)
+            phases=[kwargs.get(k,default) for k in ('connect','read','write','pool')]
+            valid=all(v.number is not None and v.number>0 for v in phases)
+            return Value('definite',timeout_state='explicit' if valid else 'disabled' if all(v.timeout_state=='disabled' for v in phases) else 'partial')
         if target in ('os.getenv','os.environ.get'): return Value('possible',sensitive=True)
         if target in ('min','max') and target not in env and target not in self.functions and self.language=='python' and len(args)>=2:
             if all(v.number is not None for v in args):
@@ -285,36 +343,41 @@ class PythonFlow:
         if function_value.receiver and function_value.receiver.startswith('function@') and self.workspace:
             mid,name=function_value.receiver[9:].split(':',1)
             result=self.workspace.invoke(self,(mid,name),args,kwargs,n.lineno)
-            self.invalidate(env)
+            self.invalidate(env,n.lineno)
             return result
         if function_value.receiver and function_value.receiver.startswith('function:') and isinstance(n.func,ast.Name) and n.func.id not in self.functions:
             name=function_value.receiver[9:]
             if name in self.functions and len(self.functions[name])==1:
                 result=self.invoke(self.functions[name][0],args,kwargs,env,n.lineno)
-                self.invalidate(env)
+                self.invalidate(env,n.lineno)
                 return result
         if isinstance(n.func, ast.Name) and n.func.id in self.imported and self.workspace:
             binding = self.workspace.bindings.get((self.facts.module.id, n.func.id))
             if binding:
                 result=self.workspace.invoke(self, binding, args, kwargs, n.lineno)
-                self.invalidate(env)
+                self.invalidate(env,n.lineno)
                 return result
         if receiver.receiver and receiver.receiver.startswith('module:') and self.workspace:
             binding = self.workspace.export(receiver.receiver[7:], n.func.attr, ())
             if binding:
                 result=self.workspace.invoke(self, binding, args, kwargs, n.lineno)
-                self.invalidate(env)
+                self.invalidate(env,n.lineno)
                 return result
         if self.language!='python':
             if args and args[-1].attributes: kwargs.update(dict(args[-1].attributes))
             target={'openai.default':'openai.OpenAI','@anthropic-ai/sdk.default':'anthropic.Anthropic'}.get(target,target)
+        if isinstance(n.func,ast.Name) and n.func.id in self.functions: target=n.func.id
         if target in ('openai.OpenAI','openai.AsyncOpenAI','anthropic.Anthropic','anthropic.AsyncAnthropic',
                       'httpx.Client','httpx.AsyncClient','requests.Session','fastapi.security.HTTPBearer','fastapi.FastAPI','flask.Flask'):
-            return Value('definite', receiver=target, timeout=kwargs.get('timeout',UNKNOWN).number,attributes=(('auto_error',kwargs.get('auto_error',Value('definite',number=1))),) if target=='fastapi.security.HTTPBearer' else ())
+            timeout=kwargs.get('timeout',UNKNOWN)
+            timeout_state=('unknown' if None in kwargs else 'sdk_default') if target.startswith('httpx.') and 'timeout' not in kwargs else ('explicit' if timeout.number is not None and timeout.number>0 else timeout.timeout_state)
+            if target=='requests.Session': timeout=UNKNOWN; timeout_state='library_no_default'
+            return Value('definite', receiver=target, constructed=True, timeout=timeout.number,timeout_state=timeout_state,attributes=(('auto_error',kwargs.get('auto_error',Value('definite',number=1))),) if target=='fastapi.security.HTTPBearer' else ())
         if isinstance(n.func,ast.Name) and n.func.id in self.classes and n.func.id not in env:
             classes=self.classes[n.func.id]
             if len(classes)!=1: return UNKNOWN
             cls=classes[0]
+            if cls.bases: self.gaps.add('semantic_inherited_receiver_unresolved')
             value=Value('definite',receiver='class:'+n.func.id,object_id=(self.facts.module.id,n.lineno,self.context))
             init=next((x for x in cls.body if isinstance(x,(ast.FunctionDef,ast.AsyncFunctionDef)) and x.name=='__init__'),None)
             if init:
@@ -340,20 +403,29 @@ class PythonFlow:
 
         if isinstance(n.func,ast.Name) and n.func.id in self.functions and len(self.functions[n.func.id])==1 and n.func.id not in env:
             result=self.invoke(self.functions[n.func.id][0],args,kwargs,env,n.lineno)
-            self.invalidate(env)
+            self.invalidate(env,n.lineno)
             return result
         if isinstance(n.func,ast.Attribute) and not receiver.receiver and self.raw_name(n.func).startswith('self.'):
             self.gaps.add('semantic_unresolved_instance_receiver')
         query=target.rsplit('.',1)[-1] in ('execute','executemany','query')
-        provider_receiver=any(target.startswith(prefix+'.') for prefix in ('openai.OpenAI','openai.AsyncOpenAI','anthropic.Anthropic','anthropic.AsyncAnthropic'))
-        model=(provider_receiver or self.provider and receiver.receiver is None) and target.endswith(('.chat.completions.create','.completions.create','.messages.create','.generate_content','.generateContent'))
-        embedding=(provider_receiver or self.provider and receiver.receiver is None) and target.endswith(('.embeddings.create','.embed_content','.embedContent'))
-        request=target in tuple(prefix+'.'+v for prefix in ('requests','requests.Session','httpx.Client','httpx.AsyncClient') for v in ('get','post','put','delete','patch','head','options','request'))
+        sdk_operation=resolve_operation(target) if receiver.constructed or function_value.constructed else None
+        if target.startswith('known_mock.') and target.endswith(MODEL_SUFFIXES+EMBEDDING_SUFFIXES):
+            self.result.sites.append(Site(n.lineno,self.owner,'mock_operation',context=self.context))
+        possible_receiver=self.provider and (receiver.receiver is None or not receiver.constructed and target.startswith(('openai.','anthropic.')))
+        model=bool(sdk_operation and sdk_operation.kind=='model') or possible_receiver and target.endswith(MODEL_SUFFIXES)
+        embedding=bool(sdk_operation and sdk_operation.kind=='embedding') or possible_receiver and target.endswith(EMBEDDING_SUFFIXES)
+        request=target in HTTP_TARGETS
         op='model' if model else 'embedding' if embedding else 'database' if query else 'http' if request else 'execution' if target in ('eval','exec','os.system','os.popen') else ''
         if op:
-            keys=('max_tokens','max_completion_tokens','max_output_tokens') if model else ('timeout',) if request else ()
-            timeout=kwargs.get('timeout', Value(number=receiver.timeout)).number
-            limited=(timeout is not None and timeout>0) if request else any(k in kwargs and kwargs[k].number is not None and kwargs[k].number>0 for k in keys)
+            keys=sdk_operation.limit_keys if sdk_operation else ('max_tokens','max_completion_tokens','max_output_tokens') if model else ('timeout',) if request else ()
+            timeout=kwargs.get('timeout', Value(number=receiver.timeout,timeout_state=receiver.timeout_state))
+            timeout_state=('explicit' if timeout.number is not None and timeout.number>0 else timeout.timeout_state)
+            if request and 'timeout' not in kwargs and target.startswith('httpx.') and target.count('.')==1: timeout_state='sdk_default'
+            if request and target.startswith('requests.') and timeout_state=='requests_pair': timeout_state='explicit'
+            if request and target.startswith('requests.') and 'timeout' not in kwargs: timeout_state='library_no_default'
+            if timeout_state=='requests_pair': timeout_state='unknown'
+            if None in kwargs: timeout_state='unknown'
+            limited=(timeout_state in ('explicit','sdk_default')) if request else any(k in kwargs and kwargs[k].number is not None and kwargs[k].number>0 for k in keys)
             bound=1
             for size in self.loop_bounds:
                 if size is None: bound=None; break
@@ -363,12 +435,16 @@ class PythonFlow:
                 any(k in kwargs for k in keys) or model and any(k in kwargs for k in ('config','generationConfig')),None in kwargs,
                 origins=tuple(sorted(set(self.loop_origins)|{origin for v in args+list(kwargs.values()) for origin in v.origins}))[:32],
                 sensitive=any(v.sensitive for v in args+list(kwargs.values())),
-                receiver_resolved=bool(receiver.receiver),safeguards=self.guards))
+                receiver_resolved=bool(sdk_operation) if model or embedding else bool(receiver.receiver),safeguards=self.guards,
+                timeout_state=timeout_state if request else 'unknown',sql_value=('untrusted_string' if args[0].taint and args[0].sql_value=='unknown' else args[0].sql_value) if args else 'unknown',
+                sql_identifier=bool(args and args[0].sql_identifier),
+                parameter_binding=query and len(args)>1 and receiver.receiver in ('sqlite3.connect.cursor','psycopg.connect.cursor','psycopg2.connect.cursor'),
+                operation_id=sdk_operation.receiver+'.'+sdk_operation.suffix if sdk_operation else None))
             self.result.summaries.setdefault(self.owner,set()).add(op)
         # Unknown calls may mutate any aliased collection. Invalidate all bounds,
         # because alias identities are intentionally not modeled in this subset.
         if not op and target not in ('len','range'):
-            self.invalidate(env)
+            self.invalidate(env,n.lineno)
         return Value(taint=bool(model) or receiver.taint or any(v.taint for v in args+list(kwargs.values())),dynamic_sql=any(v.dynamic_sql for v in args+list(kwargs.values())),sensitive=receiver.sensitive or any(v.sensitive for v in args+list(kwargs.values())))
 
     def invalidate_receiver(self,receiver,env):
@@ -377,12 +453,14 @@ class PythonFlow:
         if not receiver.object_id: return
         for key,value in list(env.items()):
             if value.object_id==receiver.object_id:
-                env[key]=replace(value,attributes=(),timeout=None,state='unknown')
+                env[key]=replace(value,attributes=(),timeout=None,timeout_state="unknown",state='unknown')
 
-    def invalidate(self,env):
+    def invalidate(self,env,line=1):
+        if any(v.size is not None or v.timeout is not None or v.attributes for v in env.values()):
+            self.result.sites.append(Site(line,self.owner,'invalidation',context=self.context))
         for key,value in list(env.items()):
-            if value.size is not None or value.attributes or value.timeout is not None:
-                env[key]=replace(value,size=None,attributes=(),timeout=None,state='unknown')
+            if value.size is not None or value.attributes or value.timeout is not None or value.timeout_state!='unknown':
+                env[key]=replace(value,size=None,attributes=(),timeout=None,timeout_state="unknown",state='unknown')
 
     def raw_name(self,n):
         if isinstance(n,ast.Name): return n.id
@@ -426,7 +504,14 @@ class PythonFlow:
         self.context=self.context+(line,)
         self.active=self.active+(fn.lineno,)
         # Caller loop domains remain relevant to callee operations.
+        for v in args+list(kwargs.values()):
+            if v.size is not None:
+                self.result.sites.append(Site(fn.lineno,self.owner,'argument_bound',upper_bound=v.size,context=self.context))
+        if guards:
+            self.result.sites.append(Site(fn.lineno,self.owner,'authentication',context=self.context,safeguards=guards))
         value,_=self.block(fn.body,local)
+        if value.size is not None:
+            self.result.sites.append(Site(fn.lineno,self.owner,'return_bound',upper_bound=value.size,context=self.context))
         if dynamic_decorator:
             value=Value(taint=value.taint or any(v.taint for v in args+list(kwargs.values())),dynamic_sql=value.dynamic_sql,sensitive=value.sensitive)
         if capture is not None: capture.update(local)
@@ -441,9 +526,9 @@ class PythonFlow:
         start=env.get(key,UNKNOWN).number
         stop=self.evaluate(test.comparators[0],env).number
         last=node.body[-1]
-        if start is None or stop is None or not isinstance(last,ast.AugAssign) or not isinstance(last.target,ast.Name) or last.target.id!=key or not isinstance(last.op,ast.Add): return None
+        if type(start) is not int or type(stop) is not int or not isinstance(last,ast.AugAssign) or not isinstance(last.target,ast.Name) or last.target.id!=key or not isinstance(last.op,ast.Add): return None
         step=self.evaluate(last.value,env).number
-        if step is None or step<=0: return None
+        if type(step) is not int or step<=0: return None
         writes=[n for stmt in node.body for n in ast.walk(stmt) if isinstance(n,ast.Name) and n.id==key and isinstance(n.ctx,ast.Store)]
         if len(writes)!=1 or any(isinstance(n,(ast.Continue,ast.Break,ast.Global,ast.Nonlocal,ast.Await,ast.Yield,ast.FunctionDef,ast.ClassDef)) for stmt in node.body for n in ast.walk(stmt)): return None
         return max(0,(stop-start+int(isinstance(test.ops[0],ast.LtE))+step-1)//step)
@@ -462,7 +547,7 @@ class PythonFlow:
                     elif isinstance(t,ast.Attribute) and self.raw_name(t).startswith('self.'):
                         env[self.raw_name(t)]=value
                     else:
-                        self.invalidate(env)
+                        self.invalidate(env,n.lineno)
             elif isinstance(n,ast.AugAssign):
                 self.evaluate(n.value,env)
                 for k,v in list(env.items()):
@@ -499,7 +584,7 @@ class PythonFlow:
                     target=self.name(call.func)
                     if target in ('range','len','str','int','float','bool') and target not in env and target not in self.functions:
                         return False
-                    if self.provider and target.endswith(('.chat.completions.create','.completions.create','.messages.create','.generate_content','.generateContent','.embeddings.create','.embed_content','.embedContent')):
+                    if self.provider and target.endswith(MODEL_SUFFIXES+EMBEDDING_SUFFIXES):
                         return False
                     if target in tuple('requests.'+v for v in ('get','post','put','delete','patch','head','options','request')):
                         return False

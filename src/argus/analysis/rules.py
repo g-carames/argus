@@ -130,6 +130,24 @@ REGISTRY = tuple(replace(r, version='1.2.0', contextual_analysis=CONTEXT_METHODS
     contextual_tests='tests/test_semantic_context.py',
     limitations=r.limitations+' Contextual refinement is bounded and partial; see docs/milestone-5.1.md for exact supported scopes and budgets.')
     if r.id in CONTEXT_METHODS else r for r in REGISTRY)
+# Corrective release metadata replaces superseded methodology rather than appending claims.
+CORRECTIONS = {
+    'ARGUS-AI-001': ('Model operation without established output limit',
+        'Exact constructed OpenAI/AsyncOpenAI Responses, chat completion, completion and embedding receivers and Anthropic/AsyncAnthropic messages use operations.py metadata. Responses accepts max_output_tokens; chat accepts max_tokens/max_completion_tokens; completions and messages accept max_tokens. Positive numerical limits through bounded aliases/arguments/returns are established. Imported suffix candidates with unresolved receivers remain possible, not genuine SDK recognition. Generic create/complete/generate names alone never establish provider identity.'),
+    'ARGUS-AI-002': ('Model or embedding call inside loop',
+        'Same operation registry and receiver distinctions as AI-001. Include Responses create. Preserve loop observations and independent unknown-caller contexts; collection bounds do not prove acceptable cost. Bounded graph summaries propagate operation candidates, never validated safeguards.'),
+    'ARGUS-REL-003': ('Request without an established applicable timeout',
+        'Recognized requests and HTTPX methods, client aliases, simple instance attributes, imported instances and statically resolved wrappers. HTTPX documented default is five seconds of network inactivity, not total duration. Constructor defaults and explicit request overrides are distinguished. Positive integer/float and complete HTTPX Timeout phase settings establish applicability; None disables, unknown/spread/partial settings remain uncertain. Requests has no default timeout; positive request timeouts and positive connect/read tuples apply. Session constructor timeout is not supported by Requests. External infrastructure and arbitrary wrappers remain unverified.'),
+    'ARGUS-SEC-004': ('Dynamic SQL with unresolved string influence',
+        'execute/executemany/query candidates: constructed SQL is an observation, not proof of vulnerability. Python constant-only construction and statically established builtin-int flows produce semantic observations without injection candidates; ambiguous/untrusted strings, dynamic identifiers and unknown sanitizers retain candidates. Reassignments and joins preserve uncertainty; one constrained caller does not protect unknown entries. Recognize parameter arguments on resolved sqlite3/psycopg/psycopg2 cursor APIs; binding does not sanitize separately constructed query text. No general taint, SQL dialect, identifier quoting or sanitizer verification.'),
+    'ARGUS-CRED-001': ('Potential exposed credential material',
+        'Bounded UTF-8 text uses TOKEN and ASSIGNMENT regexes in risks.py, PEM private-key headers, .env assignments and narrow browser-key contexts. Candidate-value full matches to the placeholder grammar are classified separately and do not create findings. Test/mock/example names or comments never establish a placeholder. Recognized patterns and plausible assignments remain potential exposure, including documentation; validity is unverified. Classification records omit values and value-derived hashes. No history or persistent lifecycle tracking.'),
+}
+REGISTRY=tuple(replace(r,version='1.3.0',name=CORRECTIONS[r.id][0],methodology=CORRECTIONS[r.id][1],
+    contextual_analysis=CORRECTIONS[r.id][1]+' Independent typed semantic observations remain available without findings. See docs/milestone-6.1.md.',
+    contextual_tests='tests/test_corrections_m61.py',
+    limitations='Bounded static scope only; runtime behavior, arbitrary dispatch and general safeguards remain unverified. Exhausted budgets remain disclosed. SQL constant/integer refinement is Python-specific; JS-family coercion remains unresolved. No independent reevaluation metrics are claimed.')
+    if r.id in CORRECTIONS else r for r in REGISTRY)
 BY_ID = {r.id: r for r in REGISTRY}
 
 

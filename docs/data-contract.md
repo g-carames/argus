@@ -342,3 +342,37 @@ Milestone 5.1 adds `unavailable_contextual_capabilities` to JSON's
 Context evidence locations may include bounded source-free module/line value origins.
 Internal sanitized flow IR is never part of the report contract. See
 [Milestone 5.1](milestone-5.1.md) for provenance truncation and partial coverage.
+
+## Schema 1.4.0 compatibility (Milestone 6.1)
+
+Compared with 1.3.0, reports add `semantic_observations` and
+`credential_candidates` arrays, independent of `findings`. Empty arrays mean no
+observations emitted in the evaluated scope, never complete semantic coverage.
+Each semantic record uses contract version `1.0.0`, a typed kind and certainty
+(directly observed, statically established, possible inference, unknown/unresolved),
+file/scope identities, evidence IDs, invocation line context, assumptions and
+limitations. Known SDK operations carry a trusted `operation_id`; timeout records
+carry a typed `timeout_state`. Optional upper bounds describe collection/iteration
+sizes, never token consumption or operational cost. Locations live in referenced
+evidence, including bounded source-free value-flow origins. No query text, credential
+values, repository-derived instructions or host paths are added. Root identity is
+obtained through `file_id`. Consumers must preserve unknown enum values when reading
+future schema versions and prominently render coverage gaps.
+
+Credential candidate records distinguish recognized patterns, plausible assignments
+and obvious placeholders, with a documentation-context flag and unverified validity.
+Non-placeholder assignments of 8–11 characters are classified as uncertain candidates;
+longer non-pattern assignments are plausible, not verified credentials.
+These records are not lifecycle exposures: `credentials` remains unavailable.
+
+Assessments add `safeguard_analysis_unsupported` and `safeguard_analysis_incomplete`.
+`no_applicable_safeguard_detected` means only the evaluated narrow scope; it is never
+an authorization/security assurance. Initial observations remain separate. No severity
+reductions are implemented in this milestone.
+
+Diagnostics add classification, occurrence count and `affected_locations`.
+`location` is the first sorted location for compatibility. Grouping uses exact
+code/stage/message equality and retains every distinct affected location. Consumers
+must use the location array rather than assuming one diagnostic means one file.
+Known resource exhaustion is distinct from malformed input. Native worker deaths
+with an unknown cause remain failures, not guessed resource exhaustion.

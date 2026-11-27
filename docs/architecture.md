@@ -250,3 +250,24 @@ operation summaries through existing resolved calls. No general framework securi
 database-limit enforcement or cross-file value flow. Findings retain observations;
 uncertain safeguards cannot suppress them. Budget/unsupported-control diagnostics
 appear in **Not Reviewed Portions of the Code**. No semantic completeness claim.
+
+## Corrective semantic release (6.1)
+
+The existing bounded workspace and Python abstract interpreter remain in place.
+`analysis/operations.py` centralizes exact constructed SDK operations and output
+parameter metadata. Imported symbols alone are not constructed clients. Unresolved
+suffix candidates retain possible-inference status. `analysis/observations.py`
+projects useful source-free facts into independent typed contracts after workspace
+flow, before contextual risk assessment. No finding is manufactured to expose a fact.
+`diagnostics.py` groups diagnostic reasons and preserves affected locations.
+
+The 128-module workspace budget remains deterministic by sorted repository-relative
+path. Skipped modules retain initial local facts but explicitly disclose unavailable
+cross-file interpretation. This is not a repository-wide semantic guarantee.
+Dependency-directed scheduling could improve relevance but requires bounded closure,
+cycle, shared-global and invalidation policies; component partitioning could lose
+cross-component dependencies. Neither is implemented for this release. No caches,
+workers beyond existing parser isolation, network acquisition or runtime execution
+were added. Semantic observations are capped at 4,096 per file, including relevant
+call relationships, with explicit exhaustion diagnostics. Existing source-free CFG,
+context, recursion, iteration and module budgets remain applicable.

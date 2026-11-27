@@ -20,6 +20,9 @@ class ParseUnavailable(Exception):
 class ParseFailure(Exception):
     """Malformed input or parser budget exceeded; never carries source text."""
 
+class ParseResourceLimit(ParseFailure):
+    """A known parser traversal, time or memory budget was exhausted."""
+
 @dataclass
 class Parsed:
     language: str
@@ -44,7 +47,7 @@ def walk(root, max_nodes=200000):
         node, depth = stack.pop()
         count += 1
         if count > max_nodes or depth > 256:
-            raise ParseFailure()
+            raise ParseResourceLimit()
         yield node
         children = list(ast.iter_child_nodes(node)) if isinstance(node, ast.AST) else node.named_children
         stack.extend((child, depth + 1) for child in reversed(children))
@@ -77,7 +80,8 @@ def parse(language, content):
                 warnings.simplefilter('ignore', DeprecationWarning)
                 parser.timeout_micros = 1000000
             tree = parser.parse(content)
-            if tree is None or tree.root_node.has_error:
+            if tree is None: raise ParseResourceLimit()
+            if tree.root_node.has_error:
                 raise ParseFailure()
         if language == 'python':
             list(walk(tree))
@@ -86,5 +90,7 @@ def parse(language, content):
         return Parsed(language, tree, content)
     except (ParseUnavailable, ImportError):
         raise ParseUnavailable() from None
-    except (SyntaxError, ValueError, UnicodeError, RecursionError, MemoryError, OverflowError):
+    except (RecursionError, MemoryError):
+        raise ParseResourceLimit() from None
+    except (SyntaxError, ValueError, UnicodeError, OverflowError):
         raise ParseFailure() from None

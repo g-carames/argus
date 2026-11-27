@@ -111,3 +111,25 @@ class CredentialExposure(Record):
         require(self.state != ExposureState.RESOLVED
                 or any(event.action == RemediationAction.REVOCATION for event in self.events),
                 "removal or replacement alone cannot resolve prior exposure")
+
+
+class CandidateClassification(StrEnum):
+    RECOGNIZED = 'recognized_pattern'
+    PLAUSIBLE = 'plausible_assignment'
+    PLACEHOLDER = 'obvious_placeholder'
+    UNCERTAIN = 'uncertain_candidate'
+
+
+@dataclass(frozen=True, kw_only=True)
+class CredentialCandidate(Record):
+    """Classification only; no raw values, hashes or validity claims."""
+    id: str
+    file_id: str
+    evidence_ids: tuple[str, ...]
+    classification: CandidateClassification
+    documentation_context: bool = False
+    validity: str = 'unverified'
+
+    def validate(self):
+        require(bool(self.id and self.file_id and self.evidence_ids), 'candidate identity/evidence required')
+        require(self.validity=='unverified','credential validity verification unavailable')

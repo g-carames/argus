@@ -42,23 +42,23 @@ Findings are static heuristic indicators, not confirmed defects. Exact syntactic
 - Limitations and false positives: Initial syntactic matching; contextual supplement applies only where explicitly documented. Aliases supported for Python imports and JS child_process named imports. General shadowing, dynamic indirect calls, arbitrary wrappers, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere.
 - Associated automated tests: `tests/test_risk_rules.py` (parameterized positive, negative and disabled cases); `tests/test_analysis_graphs.py` and `tests/test_analysis_parsing.py` cover measurement primitives.
 
-## ARGUS-REL-003 — Missing explicit request timeout
+## ARGUS-REL-003 — Request without an established applicable timeout
 
-- Version: 1.2.0; implementation status: implemented.
+- Version: 1.3.0; implementation status: implemented.
 - Primary category: reliability; secondary categories: none.
 - Languages: python.
 - Required capabilities: structural_analysis.
 - Evaluated parameter: `occurrence_rel_003`; default threshold: `0`; strict greater-than.
-- Methodology: Python requests.get/post/put/delete/patch/head/options/request calls without timeout keyword; **kwargs makes timeout unknown and suppresses finding.
-- Contextual investigation: Python positive integer timeout values through local assignments, function parameters and defaults. Configured but unknown/nonpositive timeouts produce unverified candidates. **kwargs remains unknown under inherited syntax scope; requests sessions, client constructors and external infrastructure unavailable. Milestone 5.1 extends this with bounded uniquely resolved cross-file function/constant/alias/re-export flow, keyword-only defaults, unknown external-argument entries, and separate JS-family restricted syntax lowering. Simple Python receiver/constructor/factory identities and requests.Session/httpx constructor timeouts are tracked; request overrides take precedence. Python numerical min/max clamps and monotonic final-increment counters can bound per-invocation domains. Early returns join rather than discard alternate values. Async suspension, mutation, unknown calls, recursion and exhausted budgets cannot establish safety. Python FastAPI input/Flask request influence and narrow Flask-Login/FastAPI bearer-presence observations are retained without authorization or runtime-enforcement claims. See docs/milestone-5.1.md and tests/test_semantic_cross_file.py for exact exclusions and paired tests.
-- Contextual tests: `tests/test_semantic_context.py`.
+- Methodology: Recognized requests and HTTPX methods, client aliases, simple instance attributes, imported instances and statically resolved wrappers. HTTPX documented default is five seconds of network inactivity, not total duration. Constructor defaults and explicit request overrides are distinguished. Positive integer/float and complete HTTPX Timeout phase settings establish applicability; None disables, unknown/spread/partial settings remain uncertain. Requests has no default timeout; positive request timeouts and positive connect/read tuples apply. Session constructor timeout is not supported by Requests. External infrastructure and arbitrary wrappers remain unverified.
+- Contextual investigation: Recognized requests and HTTPX methods, client aliases, simple instance attributes, imported instances and statically resolved wrappers. HTTPX documented default is five seconds of network inactivity, not total duration. Constructor defaults and explicit request overrides are distinguished. Positive integer/float and complete HTTPX Timeout phase settings establish applicability; None disables, unknown/spread/partial settings remain uncertain. Requests has no default timeout; positive request timeouts and positive connect/read tuples apply. Session constructor timeout is not supported by Requests. External infrastructure and arbitrary wrappers remain unverified. Independent typed semantic observations remain available without findings. See docs/milestone-6.1.md.
+- Contextual tests: `tests/test_corrections_m61.py`.
 - Default severity: medium; confidence criteria: medium: exact named syntax observed; runtime binding, exploitation and omitted safeguards unverified.
 - Why it matters: Observed static patterns may expose data, execution boundaries or resources. Cost consequences are potential, not measured expense.
 - Positive example: requests.get(url).
 - Negative example: requests.get(url, timeout=5).
 - Remediation: Review the observed boundary; use safe APIs, explicit validated limits and appropriate batching or error handling.
 - Validation: Re-scan the same scope and verify the risky pattern is removed or document a reviewed exception.
-- Limitations and false positives: Initial syntactic matching; contextual supplement applies only where explicitly documented. Aliases supported for Python imports and JS child_process named imports. General shadowing, dynamic indirect calls, arbitrary wrappers, framework authentication and runtime configuration are not resolved. Missing local limits may be supplied elsewhere. Contextual refinement is bounded and partial; see docs/milestone-5.1.md for exact supported scopes and budgets.
+- Limitations and false positives: Bounded static scope only; runtime behavior, arbitrary dispatch and general safeguards remain unverified. Exhausted budgets remain disclosed. SQL constant/integer refinement is Python-specific; JS-family coercion remains unresolved. No independent reevaluation metrics are claimed.
 - Associated automated tests: `tests/test_risk_rules.py` (parameterized positive, negative and disabled cases); `tests/test_analysis_graphs.py` and `tests/test_analysis_parsing.py` cover measurement primitives.
 
 ## ARGUS-REL-004 — Blocking call in async function
